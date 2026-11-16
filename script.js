@@ -4106,6 +4106,9 @@ modifierButtons.forEach(button => {
 // Свайпы по игровому полю: поворот срабатывает во время движения пальца,
 // не дожидаясь отпускания, а точка отсчёта переносится — можно рисовать
 // «змейку» одним непрерывным жестом.
+// Свайпы принимают и само поле, и сенсорная площадка под ним (в режиме «во весь экран»).
+const swipePad = document.getElementById("swipePad");
+const swipeSurfaces = [boardWrap, swipePad];
 let swipeGesture = null;
 function swipeEnabled(event) {
     return preferences.swipe && event.pointerType !== "mouse" && gameState === "running";
@@ -4113,18 +4116,18 @@ function swipeEnabled(event) {
 function swipeThreshold() {
     return Math.max(14, Math.min(26, boardWrap.clientWidth * 0.045));
 }
-function showSwipePing(x, y, name) {
+function showSwipePing(x, y, name, surface) {
     if (preferences.effects || reducedMotionQuery.matches) return;
-    const bounds = boardWrap.getBoundingClientRect();
+    const bounds = surface.getBoundingClientRect();
     const ping = document.createElement("span");
     ping.className = "swipe-ping swipe-ping--" + name;
     ping.style.left = (x - bounds.left) + "px";
     ping.style.top = (y - bounds.top) + "px";
     ping.addEventListener("animationend", () => ping.remove());
-    boardWrap.appendChild(ping);
+    surface.appendChild(ping);
 }
 let lastFieldTapAt = 0;
-boardWrap.addEventListener("pointerdown", event => {
+swipeSurfaces.forEach(surface => surface.addEventListener("pointerdown", event => {
     if (!swipeEnabled(event)) return;
     if (swipeGesture) {
         // Второй палец на поле — выключить или включить порталы.
@@ -4138,9 +4141,9 @@ boardWrap.addEventListener("pointerdown", event => {
         return;
     }
     swipeGesture = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, startedAt: performance.now(), moved: false, multi: false };
-    try { boardWrap.setPointerCapture(event.pointerId); } catch (error) { /* захват недоступен — не критично */ }
-});
-boardWrap.addEventListener("pointermove", event => {
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch (error) { /* захват недоступен — не критично */ }
+}));
+swipeSurfaces.forEach(surface => surface.addEventListener("pointermove", event => {
     if (!swipeGesture || event.pointerId !== swipeGesture.pointerId) return;
     if (gameState !== "running") { swipeGesture = null; return; }
     const deltaX = event.clientX - swipeGesture.x;
@@ -4153,10 +4156,10 @@ boardWrap.addEventListener("pointermove", event => {
     swipeGesture.y = event.clientY;
     swipeGesture.moved = true;
     if (setDirection(directions[name])) {
-        showSwipePing(event.clientX, event.clientY, name);
+        showSwipePing(event.clientX, event.clientY, name, event.currentTarget);
         if (navigator.vibrate) navigator.vibrate(8);
     }
-});
+}));
 function endSwipe(event) {
     if (!swipeGesture || event.pointerId !== swipeGesture.pointerId) return;
     const gesture = swipeGesture;
@@ -4174,13 +4177,13 @@ function endSwipe(event) {
         lastFieldTapAt = now;
     }
 }
-boardWrap.addEventListener("pointerup", endSwipe);
-boardWrap.addEventListener("pointercancel", endSwipe);
-boardWrap.addEventListener("lostpointercapture", endSwipe);
+swipeSurfaces.forEach(surface => surface.addEventListener("pointerup", endSwipe));
+swipeSurfaces.forEach(surface => surface.addEventListener("pointercancel", endSwipe));
+swipeSurfaces.forEach(surface => surface.addEventListener("lostpointercapture", endSwipe));
 // Пока идёт игра, жест по полю не должен прокручивать страницу.
-boardWrap.addEventListener("touchmove", event => {
+swipeSurfaces.forEach(surface => surface.addEventListener("touchmove", event => {
     if (preferences.swipe && gameState === "running" && event.cancelable) event.preventDefault();
-}, { passive: false });
+}, { passive: false }));
 
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("resize", resizeAmbientCanvas);
