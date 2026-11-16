@@ -1,5 +1,5 @@
-// Офлайн-режим: файлы игры кэшируются и обновляются в фоне при следующем открытии.
-const CACHE = "infinite-snake-v8";
+// Офлайн-режим: файлы игры кэшируются при каждой загрузке и отдаются из кэша, когда сети нет.
+const CACHE = "infinite-snake-v9";
 const ASSETS = [
     "./",
     "index.html",
@@ -25,18 +25,18 @@ self.addEventListener("activate", event => {
     );
 });
 
+// Сначала сеть, кэш — только когда сети нет. Так после выкладки новой версии все файлы
+// обновляются сразу и вместе, а без интернета игра по-прежнему открывается.
 self.addEventListener("fetch", event => {
     const request = event.request;
     if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
     event.respondWith(
-        caches.open(CACHE).then(cache =>
-            cache.match(request, { ignoreSearch: true }).then(cached => {
-                const fresh = fetch(request).then(response => {
-                    if (response && response.ok) cache.put(request, response.clone());
-                    return response;
-                }).catch(() => cached);
-                return cached || fresh;
-            })
-        )
+        fetch(request, { cache: "no-cache" }).then(response => {
+            if (response && response.ok) {
+                const copy = response.clone();
+                caches.open(CACHE).then(cache => cache.put(request, copy));
+            }
+            return response;
+        }).catch(() => caches.open(CACHE).then(cache => cache.match(request, { ignoreSearch: true })))
     );
 });

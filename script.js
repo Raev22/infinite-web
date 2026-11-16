@@ -4218,31 +4218,46 @@ const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
 function fullscreenElement() {
     return document.fullscreenElement || document.webkitFullscreenElement || null;
 }
+// Режим «во весь экран» работает всегда: раскладка переключается сразу, а настоящий
+// полноэкранный режим браузера включается поверх неё там, где он доступен.
+const fullscreenSupported = Boolean(requestFullscreen && exitFullscreen && (document.fullscreenEnabled || document.webkitFullscreenEnabled));
+let immersive = false;
 function updateFullscreenButton() {
-    const active = Boolean(fullscreenElement());
-    const label = active ? "Выйти из полноэкранного режима" : "Развернуть на весь экран";
-    fullscreenButton.setAttribute("aria-pressed", String(active));
+    const label = immersive ? "Выйти из режима «во весь экран»" : "Развернуть на весь экран";
+    fullscreenButton.setAttribute("aria-pressed", String(immersive));
     fullscreenButton.setAttribute("aria-label", label);
     fullscreenButton.title = label;
-    fullscreenButton.querySelector("use").setAttribute("href", active ? "#icon-compress" : "#icon-expand");
-    document.body.classList.toggle("is-fullscreen", active);
+    fullscreenButton.querySelector("use").setAttribute("href", immersive ? "#icon-compress" : "#icon-expand");
+    document.body.classList.toggle("is-fullscreen", immersive);
+    if (immersive) window.scrollTo(0, 0);
+    resizeCanvas();
+    draw();
 }
 function toggleFullscreen() {
+    immersive = !immersive;
+    updateFullscreenButton();
+    if (!fullscreenSupported) return;
     try {
-        const result = fullscreenElement()
-            ? exitFullscreen.call(document)
-            : requestFullscreen.call(fullscreenRoot, { navigationUI: "hide" });
-        if (result && result.catch) result.catch(error => console.warn("Не удалось переключить полноэкранный режим.", error));
+        const result = immersive
+            ? (fullscreenElement() ? null : requestFullscreen.call(fullscreenRoot, { navigationUI: "hide" }))
+            : (fullscreenElement() ? exitFullscreen.call(document) : null);
+        // Если браузер отказал, раскладка «во весь экран» всё равно остаётся.
+        if (result && result.catch) result.catch(error => console.warn("Браузер не включил полноэкранный режим.", error));
     } catch (error) {
-        console.warn("Не удалось переключить полноэкранный режим.", error);
+        console.warn("Браузер не включил полноэкранный режим.", error);
     }
 }
-if (requestFullscreen && exitFullscreen && (document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
-    fullscreenButton.hidden = false;
-    fullscreenButton.addEventListener("click", toggleFullscreen);
-    document.addEventListener("fullscreenchange", updateFullscreenButton);
-    document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+function onFullscreenChange() {
+    // Выход системным жестом «назад» или клавишей Esc возвращает и обычную раскладку.
+    if (!fullscreenElement() && immersive) {
+        immersive = false;
+        updateFullscreenButton();
+    }
 }
+fullscreenButton.hidden = false;
+fullscreenButton.addEventListener("click", toggleFullscreen);
+document.addEventListener("fullscreenchange", onFullscreenChange);
+document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 summaryReplayButton.addEventListener("click", startGame);
 summaryShareButton.addEventListener("click", shareResult);
 tailCutButton.addEventListener("click", cutTail);
