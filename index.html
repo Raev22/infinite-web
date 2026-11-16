@@ -2,8 +2,15 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#07080c">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#06070f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Змейка">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
     <meta name="description" content="Бесконечная змейка. Сделайте паузу и поймайте свой ритм.">
     <title>Змейка — INFINITE</title>
     <link rel="stylesheet" href="styles.css">
@@ -35,6 +42,7 @@
         <symbol id="icon-volume" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a5 5 0 0 1 0 6m2.5-8.5a8.5 8.5 0 0 1 0 11"/></symbol>
     </svg>
     <div class="day-cycle" aria-hidden="true">
+        <canvas class="ambient-canvas" id="ambientCanvas"></canvas>
         <svg class="ambient-waves" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
             <defs>
                 <linearGradient id="ambientWaveA" x1="0" y1="0" x2="1" y2="0.35">
@@ -101,9 +109,14 @@
                     <label class="setting-row"><span><strong>Крупный текст</strong><small>Увеличивает подписи и пояснения</small></span><input id="settingLargeText" type="checkbox"></label>
                     <label class="setting-row"><span><strong>Режим концентрации</strong><small>Скрывает второстепенные панели только во время игры</small></span><input id="settingFocusMode" type="checkbox"></label>
                 </fieldset>
+                <fieldset class="settings-options">
+                    <legend>ИГРА</legend>
+                    <label class="setting-row"><span><strong>Усиления на поле</strong><small>Игра не останавливается: заберите усиление змейкой. Выключено — пауза и окно выбора</small></span><input id="settingFieldUpgrades" type="checkbox"></label>
+                    <label class="setting-row"><span><strong>Все механики сразу</strong><small>Выключено — механики открываются по одной ступени за забег. Применяется со следующего забега</small></span><input id="settingAllMechanics" type="checkbox"></label>
+                </fieldset>
                 <fieldset class="settings-options settings-controls">
                     <legend>УПРАВЛЕНИЕ НА ТЕЛЕФОНЕ</legend>
-                    <label class="setting-row"><span><strong>Свайпы по полю</strong><small>Включено — управление жестами; выключено — экранные стрелки</small></span><input id="settingSwipe" type="checkbox"></label>
+                    <label class="setting-row"><span><strong>Свайпы по полю</strong><small>На телефоне включены по умолчанию. Выключите, чтобы вернуть экранные стрелки</small></span><input id="settingSwipe" type="checkbox"></label>
                 </fieldset>
                 <p class="settings-note">Настройки сохраняются только в этом браузере.</p>
             </form>
@@ -130,6 +143,13 @@
             <div class="board-card">
                 <div class="board-topline">
                     <div class="board-label"><svg class="ui-icon board-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-spark"/></svg> ЗМЕЙКА <span class="biome-label" id="biomeLabel">НЕОНОВЫЙ САД</span></div>
+                    <div class="board-hud" aria-hidden="true">
+                        <strong class="hud-score" id="hudScore">00</strong>
+                        <span class="hud-flow" id="hudFlow">×0</span>
+                        <span class="hud-pace" id="hudPace" title="Отрыв от своего рекорда"></span>
+                        <span class="hud-focus"><i></i><i></i><i></i></span>
+                        <span class="hud-power" id="hudPower"></span>
+                    </div>
                     <div class="level-pill"><span class="level-dot"></span><span id="levelLabel">УРОВЕНЬ 01</span></div>
                 </div>
                 <div class="rhythm-meter" id="rhythmMeter">
@@ -146,20 +166,27 @@
                         <h2 id="overlayTitle">Готовы<br>начать?</h2>
                         <p class="overlay-copy" id="overlayCopy">Собирайте точки и не теряйте себя на поворотах.</p>
                         <section class="round-summary" id="roundSummary" aria-label="Итоги раунда" hidden>
-                            <div><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-spark"/></svg> ОЧКИ</span><strong id="summaryScore">0</strong></div>
-                            <div><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trophy"/></svg> РЕКОРД</span><strong id="summaryRecord">—</strong></div>
-                            <div><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-target"/></svg> ПОДБОРЫ</span><strong id="summaryPickups">0</strong></div>
-                            <div><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-flame"/></svg> ЛУЧШАЯ СЕРИЯ</span><strong id="summaryCombo">×0</strong></div>
-                            <p class="summary-record-note" id="summaryRecordNote">Личный рекорд</p>
-                            <p><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-clock"/></svg><span id="summaryTime">ВРЕМЯ · 00:00</span></p>
-                            <p><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-target"/></svg><span id="summaryChallenge">ЗАДАНИЕ · —</span></p>
-                            <p><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trophy"/></svg><span id="summaryMedal">ДОСТИЖЕНИЕ · —</span></p>
+                            <div class="summary-main"><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-spark"/></svg> ОЧКИ</span><strong id="summaryScore">0</strong></div>
+                            <div class="summary-main"><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trophy"/></svg> РЕКОРД</span><strong id="summaryRecord">—</strong></div>
                             <p class="summary-next-goal" id="summaryNextGoal"></p>
                             <div class="summary-progress" role="progressbar" aria-label="Прогресс до следующей цели" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="summaryProgressBar"></span></div>
+                            <p class="summary-unlock" id="summaryUnlock" hidden></p>
+                            <p class="summary-streak" id="summaryStreak" hidden></p>
+                            <details class="summary-details">
+                                <summary>ПОДРОБНЕЕ</summary>
+                                <div class="summary-more">
+                                    <div><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-target"/></svg> ПОДБОРЫ</span><strong id="summaryPickups">0</strong></div>
+                                    <div><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-flame"/></svg> ЛУЧШАЯ СЕРИЯ</span><strong id="summaryCombo">×0</strong></div>
+                                    <p><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-clock"/></svg><span id="summaryTime">ВРЕМЯ · 00:00</span></p>
+                                    <p><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-target"/></svg><span id="summaryChallenge">ЗАДАНИЕ · —</span></p>
+                                    <p><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trophy"/></svg><span id="summaryMedal">ДОСТИЖЕНИЕ · —</span></p>
+                                </div>
+                            </details>
                         </section>
                         <div class="result-actions" id="resultActions" hidden>
                             <button class="result-replay" id="summaryReplayButton" type="button">Ещё раз</button>
                             <button class="result-mode" id="summaryModeButton" type="button">Сменить режим</button>
+                            <button class="result-share" id="summaryShareButton" type="button" aria-label="Поделиться результатом" title="Поделиться результатом"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0L8 8m4-4 4 4M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
                         </div>
                         <section class="run-setup" id="runSetup" aria-label="Режим забега">
                             <details class="setup-details">
@@ -185,17 +212,17 @@
                             <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-play"/></svg><span id="startButtonLabel">Начать игру</span><span class="button-arrow" aria-hidden="true">↗</span>
                         </button>
                         <div class="upgrade-picker" id="upgradePicker" hidden>
-                            <p>ВЫБЕРИТЕ ОДНО УСИЛЕНИЕ</p>
+                            <p>ВЫБЕРИТЕ ОДНО УСИЛЕНИЕ<span class="upgrade-keys-note"> · КЛАВИШИ ← ↓ →</span></p>
                             <div class="upgrade-options">
-                                <button type="button" class="upgrade-option" data-upgrade="shield">
+                                <button type="button" class="upgrade-option" data-upgrade="shield" aria-keyshortcuts="ArrowLeft 1">
                                     <svg class="upgrade-icon" viewBox="0 0 40 40" aria-hidden="true">
                                         <path d="M20 4.5 32 9v9.2c0 8.1-4.8 13.8-12 17.3-7.2-3.5-12-9.2-12-17.3V9l12-4.5Z"/>
                                         <path d="m14.7 19.5 3.6 3.6 7.3-7.4"/>
                                         <path class="upgrade-icon-spark" d="M31.5 25.5v5m-2.5-2.5h5"/>
                                     </svg>
-                                    <strong>ЩИТ</strong><span>Один раз защитит от ловушки или охотника</span><small>Полезен, если опасность рядом</small>
+                                    <kbd class="upgrade-key" aria-hidden="true">←</kbd><strong>ЩИТ</strong><span>Один раз защитит от ловушки или охотника</span><small>Полезен, если опасность рядом</small>
                                 </button>
-                                <button type="button" class="upgrade-option" data-upgrade="magnet">
+                                <button type="button" class="upgrade-option" data-upgrade="magnet" aria-keyshortcuts="ArrowDown 2">
                                     <svg class="upgrade-icon" viewBox="0 0 40 40" aria-hidden="true">
                                         <path d="M9 8v12a11 11 0 0 0 22 0V8"/>
                                         <path d="M9 8h8v11a3 3 0 0 0 6 0V8h8"/>
@@ -203,9 +230,9 @@
                                         <circle class="upgrade-icon-spark" cx="20" cy="33" r="1.5"/>
                                         <path class="upgrade-icon-spark" d="M6 22h3m22 0h3"/>
                                     </svg>
-                                    <strong>МАГНИТ</strong><span>Притягивает еду 10 секунд</span><small>Удобен для безопасного сбора</small>
+                                    <kbd class="upgrade-key" aria-hidden="true">↓</kbd><strong>МАГНИТ</strong><span>Притягивает еду 10 секунд</span><small>Удобен для безопасного сбора</small>
                                 </button>
-                                <button type="button" class="upgrade-option" data-upgrade="double">
+                                <button type="button" class="upgrade-option" data-upgrade="double" aria-keyshortcuts="ArrowRight 3">
                                     <svg class="upgrade-icon" viewBox="0 0 40 40" aria-hidden="true">
                                         <circle cx="17" cy="21" r="11"/>
                                         <circle cx="17" cy="21" r="7"/>
@@ -213,7 +240,7 @@
                                         <path d="m26 10 5 5m-3 15 6-6"/>
                                         <path class="upgrade-icon-spark" d="M29 9h5m-2.5-2.5v5"/>
                                     </svg>
-                                    <strong>×2 ОЧКИ</strong><span>Удваивает очки за 5 подборов</span><small>Больше выгоды от серии</small>
+                                    <kbd class="upgrade-key" aria-hidden="true">→</kbd><strong>×2 ОЧКИ</strong><span>Удваивает очки за 5 подборов</span><small>Больше выгоды от серии</small>
                                 </button>
                             </div>
                         </div>
@@ -226,6 +253,12 @@
                             <span class="rewind-effect-caption">ВРЕМЯ ВЕРНУЛОСЬ</span>
                         </div>
                     </div>
+                    <div class="board-glow" aria-hidden="true"></div>
+                    <div class="resume-count" id="resumeCount" aria-hidden="true" hidden></div>
+                    <div class="swipe-hint" aria-hidden="true">
+                        <span class="swipe-hint-finger"></span>
+                        <span class="swipe-hint-text">ПРОВЕДИТЕ ПО ПОЛЮ</span>
+                    </div>
                     <div class="board-corner board-corner-tl" aria-hidden="true"></div>
                     <div class="board-corner board-corner-br" aria-hidden="true"></div>
                 </div>
@@ -234,7 +267,10 @@
                     <span id="gameTipText"></span>
                     <button id="dismissTipButton" type="button" aria-label="Скрыть подсказку">×</button>
                 </div>
-                <div class="board-footer">
+                <div class="board-footer board-footer--swipe">
+                    <span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-route"/></svg> СВАЙП — ПОВОРОТ · ДВА КАСАНИЯ — ФОКУС</span>
+                </div>
+                <div class="board-footer board-footer--keys">
                     <span><span class="keycap">↑</span><span class="keycap">←</span><span class="keycap">↓</span><span class="keycap">→</span> ДВИЖЕНИЕ</span>
                     <span class="footer-divider"></span>
                     <span><span class="keycap keycap-wide">SPACE</span> ПАУЗА</span>
@@ -265,6 +301,11 @@
                             <span class="focus-key">F</span>
                         </button>
                     </div>
+                    <button class="tail-button" id="tailCutButton" type="button" disabled>
+                        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="m8.2 8.4 11.8 8.1M8.2 15.6 20 7.5"/></svg>
+                        <span id="tailCutLabel">Сброс хвоста</span>
+                        <span class="focus-key">Q</span>
+                    </button>
                     <p class="controls-hint" id="focusHint">СОБИРАЙТЕ ТОЧКИ, ЧТОБЫ ЗАРЯДИТЬ ФОКУС</p>
                     <p class="controls-hint controls-hint--directions"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-target"/></svg> СТРЕЛКИ ИЛИ КНОПКИ НА ЭКРАНЕ</p>
                     <p class="controls-hint controls-hint--swipe"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-target"/></svg> СВАЙПАЙТЕ ПО ПОЛЮ ДЛЯ ПОВОРОТА</p>

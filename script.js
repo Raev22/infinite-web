@@ -27,7 +27,10 @@ const settingInputs = {
     effects: document.getElementById("settingEffects"),
     contrast: document.getElementById("settingContrast"),
     largeText: document.getElementById("settingLargeText"),
-    swipe: document.getElementById("settingSwipe")
+    swipe: document.getElementById("settingSwipe"),
+    focusMode: document.getElementById("settingFocusMode"),
+    fieldUpgrades: document.getElementById("settingFieldUpgrades"),
+    allMechanics: document.getElementById("settingAllMechanics")
 };
 const gameTip = document.getElementById("gameTip");
 const gameTipText = document.getElementById("gameTipText");
@@ -68,6 +71,23 @@ const worldStatus = document.getElementById("worldStatus");
 const worldStatusText = document.getElementById("worldStatusText");
 const upgradePicker = document.getElementById("upgradePicker");
 const upgradeButtons = document.querySelectorAll(".upgrade-option");
+const hudScore = document.getElementById("hudScore");
+const hudFlow = document.getElementById("hudFlow");
+const hudFocusDots = document.querySelectorAll(".hud-focus i");
+const hudPower = document.getElementById("hudPower");
+const hudPace = document.getElementById("hudPace");
+const tailCutButton = document.getElementById("tailCutButton");
+const tailCutLabel = document.getElementById("tailCutLabel");
+const summaryShareButton = document.getElementById("summaryShareButton");
+const summaryStreak = document.getElementById("summaryStreak");
+const resumeCount = document.getElementById("resumeCount");
+const resultActions = document.getElementById("resultActions");
+const summaryReplayButton = document.getElementById("summaryReplayButton");
+const summaryModeButton = document.getElementById("summaryModeButton");
+const summaryUnlock = document.getElementById("summaryUnlock");
+const statCompleted = document.getElementById("statCompleted");
+const statFavorite = document.getElementById("statFavorite");
+const statBest = document.getElementById("statBest");
 const biomeLabel = document.getElementById("biomeLabel");
 const themeButtons = document.querySelectorAll(".theme-option");
 const themeUnlockStatus = document.getElementById("themeUnlockStatus");
@@ -103,6 +123,15 @@ let renderScale = 1;
 const storageKey = "infinite-snake-best";
 const preferencesStorageKey = storageKey + "-preferences";
 const soundPreferenceStorageKey = preferencesStorageKey + "-sound-explicit";
+const swipePreferenceStorageKey = preferencesStorageKey + "-swipe-explicit";
+const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+// Запись в DOM только при реальном изменении текста — без лишних пересчётов вёрстки.
+function setText(element, value) {
+    if (element.__text === value) return;
+    element.__text = value;
+    element.textContent = value;
+}
 const bestTrailKey = storageKey + "-trail";
 const rewindSteps = 8;
 const timelineLimit = rewindSteps + 1;
@@ -121,16 +150,16 @@ const visualDurations = {
     nearMiss: 520
 };
 const biomes = [
-    { name: "НЕОНОВЫЙ САД", kind: "garden", accent: "#c2ff00", wash: "rgba(194, 255, 0, .045)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(194, 255, 0, .075)" },
-    { name: "КИБЕР-СИЯНИЕ", kind: "aurora", accent: "#3be8ff", wash: "rgba(59, 232, 255, .045)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(59, 232, 255, .08)" },
-    { name: "УЛЬТРАФИОЛЕТ", kind: "cosmos", accent: "#b76bff", wash: "rgba(183, 107, 255, .05)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(183, 107, 255, .08)" },
-    { name: "НЕОНОВЫЙ ПУЛЬС", kind: "dusk", accent: "#ff3ed1", wash: "rgba(255, 62, 209, .045)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(255, 62, 209, .08)" }
+    { name: "НЕОНОВЫЙ САД", kind: "garden", accent: "#c2ff00", wash: "rgba(194, 255, 0, .075)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(194, 255, 0, .075)" },
+    { name: "КИБЕР-СИЯНИЕ", kind: "aurora", accent: "#56dcff", wash: "rgba(86, 220, 255, .075)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(86, 220, 255, .08)" },
+    { name: "УЛЬТРАФИОЛЕТ", kind: "cosmos", accent: "#a88bff", wash: "rgba(168, 139, 255, .08)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(168, 139, 255, .08)" },
+    { name: "НЕОНОВЫЙ ПУЛЬС", kind: "dusk", accent: "#ff5ac4", wash: "rgba(255, 90, 196, .075)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(255, 90, 196, .08)" }
 ];
 const snakeThemes = [
     { id: "grove", name: "Неон", unlock: 0, hue: 0, accent: "#c2ff00", trail: "rgba(194, 255, 0, .42)" },
-    { id: "mint", name: "Циан", unlock: 15, hue: 105, accent: "#3be8ff", trail: "rgba(59, 232, 255, .42)" },
-    { id: "ocean", name: "Магента", unlock: 35, hue: 238, accent: "#ff3ed1", trail: "rgba(255, 62, 209, .42)" },
-    { id: "violet", name: "Ультрафиолет", unlock: 60, hue: 180, accent: "#b76bff", trail: "rgba(183, 107, 255, .42)" }
+    { id: "mint", name: "Циан", unlock: 15, hue: 105, accent: "#56dcff", trail: "rgba(86, 220, 255, .42)" },
+    { id: "ocean", name: "Магента", unlock: 35, hue: 238, accent: "#ff5ac4", trail: "rgba(255, 90, 196, .42)" },
+    { id: "violet", name: "Ультрафиолет", unlock: 60, hue: 180, accent: "#a88bff", trail: "rgba(168, 139, 255, .42)" }
 ];
 const themeStorageKey = storageKey + "-theme";
 const runModifiers = {
@@ -158,16 +187,30 @@ const directions = {
 };
 const contextTipsSeen = new Set();
 const contextTips = {
-    focus: "Фокус заряжен: нажмите F или кнопку «Фокус», чтобы ненадолго замедлить игру.",
+    focus: isTouchDevice
+        ? "Фокус заряжен: дважды коснитесь поля или нажмите «Фокус», чтобы ненадолго замедлить игру."
+        : "Фокус заряжен: нажмите F или кнопку «Фокус», чтобы ненадолго замедлить игру.",
+    upgradeField: "На поле появились три усиления. Заберите змейкой одно — остальные исчезнут. Набор каждый раз разный.",
     risk: "Риск-точка даёт больше очков, но исчезает через несколько секунд.",
-    portal: "Порталы переносят к паре. Пройдите через оба для дополнительной награды.",
+    portal: isTouchDevice
+        ? "Порталы переносят к паре. Пройдите через оба для награды. Касание поля двумя пальцами выключает и включает их."
+        : "Порталы переносят к паре. Пройдите через оба для дополнительной награды.",
     hazard: "Красная клетка скоро станет опасной — освободите её до конца отсчёта.",
-    pursuer: "Вражеская змея преследует вас. Столкновение с любой её секцией опасно."
+    pursuer: "Вражеская змея преследует вас. Столкновение с любой её секцией опасно.",
+    tailCut: isTouchDevice
+        ? "Змейка выросла: кнопка «Сбросить хвост» превратит половину сегментов в очки, но обнулит поток."
+        : "Змейка выросла: клавиша Q превратит половину сегментов в очки, но обнулит поток.",
+    resonance: "Резонанс! Поворачивайте в такт импульсу: с ×3 каждый подбор даёт +1, с ×6 — +2.",
+    hunt: "Погоня! Охотник ускорился на 20 секунд. Продержитесь — получите +8 очков и полный фокус.",
+    biomeAurora: "Кибер-сияние: лёд. Перед поворотом змейка проскальзывает ещё одну клетку — поворачивайте заранее.",
+    biomeCosmos: "Ультрафиолет: тьма. Видно только область вокруг головы, еда слабо мерцает вдали.",
+    biomeDusk: "Неоновый пульс: стены появляются через такт. Пунктир — стена скоро станет твёрдой."
 };
 
 let snake;
 let direction;
 let queuedDirection;
+let pendingDirection = null;
 let food;
 let score;
 let foodCount;
@@ -248,6 +291,29 @@ let shieldCharges;
 let magnetRemaining;
 let doubleScoreCharges;
 let pendingUpgradeChoice;
+let upgradeTokens = [];
+let upgradeTokensRemaining = 0;
+let resumeCountdown = 0;
+let statusClock = 0;
+let lastIdleDraw = 0;
+let recordSaveDirty = false;
+let recordSaveAt = 0;
+let phaseCharges = 0;
+let stasisRemaining = 0;
+let echoBoostCharges = 0;
+let rhythmBoostRemaining = 0;
+let resonance = 0;
+let resonanceRemaining = 0;
+let resonanceBeatIndex = -1;
+let iceSlideUsed = false;
+let pulseWalls = [];
+let huntRemaining = 0;
+let nextHuntAt = 16;
+let runPace = [];
+let ghostPace = [];
+let paceLead = null;
+let lastRunSummary = null;
+let resumeCountLabel = 0;
 let bestScore = loadBestScore();
 let gameState = "idle";
 let stateBeforeRestartConfirmation = null;
@@ -264,7 +330,8 @@ let soundtrackBus = null;
 let gameTipTimeout = 0;
 
 function loadPreferences() {
-    const defaults = { sound: true, effects: false, contrast: false, largeText: false, swipe: false };
+    // На сенсорных экранах свайпы включены по умолчанию, пока игрок сам не выберет иначе.
+    const defaults = { sound: true, effects: false, contrast: false, largeText: false, swipe: isTouchDevice, focusMode: false, fieldUpgrades: true, allMechanics: false };
     try {
         const stored = JSON.parse(localStorage.getItem(preferencesStorageKey) || "null");
         if (!stored || typeof stored !== "object") return defaults;
@@ -274,7 +341,10 @@ function loadPreferences() {
             )),
             sound: localStorage.getItem(soundPreferenceStorageKey) === "true"
                 ? stored.sound === true
-                : defaults.sound
+                : defaults.sound,
+            swipe: localStorage.getItem(swipePreferenceStorageKey) === "true"
+                ? stored.swipe === true
+                : defaults.swipe
         };
     } catch (error) {
         console.warn("Не удалось загрузить настройки игры.", error);
@@ -286,6 +356,7 @@ function savePreferences(changedKey) {
     try {
         localStorage.setItem(preferencesStorageKey, JSON.stringify(preferences));
         if (changedKey === "sound") localStorage.setItem(soundPreferenceStorageKey, "true");
+        if (changedKey === "swipe") localStorage.setItem(swipePreferenceStorageKey, "true");
     } catch (error) {
         console.warn("Не удалось сохранить настройки игры.", error);
     }
@@ -296,6 +367,7 @@ function applyPreferences() {
     document.body.classList.toggle("settings-high-contrast", preferences.contrast);
     document.body.classList.toggle("settings-large-text", preferences.largeText);
     document.body.classList.toggle("settings-swipe", preferences.swipe);
+    document.body.classList.toggle("settings-focus", preferences.focusMode);
     Object.entries(settingInputs).forEach(([key, input]) => {
         input.checked = preferences[key];
     });
@@ -358,12 +430,7 @@ function chooseTheme(id) {
 function showContextTip(id) {
     if (!contextTips[id] || contextTipsSeen.has(id)) return;
     contextTipsSeen.add(id);
-    gameTipText.textContent = contextTips[id];
-    gameTip.hidden = false;
-    window.clearTimeout(gameTipTimeout);
-    gameTipTimeout = window.setTimeout(() => {
-        gameTip.hidden = true;
-    }, 6500);
+    showTip(contextTips[id]);
 }
 
 function playSound(type) {
@@ -380,6 +447,7 @@ function playSound(type) {
             riskPickup: { notes: [587, 880], spacing: 0.075, duration: 0.24, waveform: "triangle", volume: 0.22 },
             chronoPickup: { notes: [523, 784, 1047], spacing: 0.06, duration: 0.28, waveform: "sine", volume: 0.2 },
             portal: { notes: [420], spacing: 0, duration: 0.13, waveform: "triangle", volume: 0.12 },
+            beat: { notes: [1175], spacing: 0, duration: 0.09, waveform: "sine", volume: 0.07 },
             danger: { notes: [190], spacing: 0, duration: 0.18, waveform: "sawtooth", volume: 0.12 },
             end: { notes: [130], spacing: 0, duration: 0.24, waveform: "triangle", volume: 0.12 }
         };
@@ -433,6 +501,26 @@ function playSoundtrackNote() {
     gain.connect(soundtrackBus);
     oscillator.start(now);
     oscillator.stop(now + 0.95);
+    // Резонанс добавляет в музыку новые слои.
+    const baseNote = notes[soundtrackNoteIndex % notes.length];
+    const layer = (frequency, delay, volume) => {
+        const voice = audioContext.createOscillator();
+        const voiceGain = audioContext.createGain();
+        voice.type = "triangle";
+        voice.frequency.setValueAtTime(frequency, now + delay);
+        voiceGain.gain.setValueAtTime(0.0001, now + delay);
+        voiceGain.gain.exponentialRampToValueAtTime(volume, now + delay + 0.03);
+        voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.6);
+        voice.connect(voiceGain);
+        voiceGain.connect(soundtrackBus);
+        voice.start(now + delay);
+        voice.stop(now + delay + 0.65);
+    };
+    if (resonance >= 3) layer(baseNote * 1.5, 1.3, 0.04);
+    if (resonance >= 6) {
+        layer(baseNote * 2, 0.65, 0.032);
+        layer(baseNote * 2.5, 1.95, 0.028);
+    }
     soundtrackNoteIndex++;
 }
 
@@ -560,25 +648,37 @@ function saveCurrentRunRecord() {
     }
 }
 
+// Запись рекорда (до 1200 точек маршрута) — тяжёлая синхронная операция, поэтому она
+// выполняется не чаще раза в 4 секунды, а также на паузе, в конце забега и при уходе со страницы.
+function flushRecordSaves() {
+    if (!recordSaveDirty) return;
+    recordSaveDirty = false;
+    recordSaveAt = performance.now();
+    saveCurrentRunRecord();
+    saveBestScore();
+    if (!dailyRun) saveBestTrail();
+}
+
 function recordScoreIfNeeded() {
     let updated = false;
     if (score > currentRunRecord.score) {
-        currentRunRecord = { score, trail: runPath.slice(0, 1200) };
+        currentRunRecord = { score, trail: runPath.slice(0, 1200), pace: runPace.slice() };
         bestTrail = currentRunRecord.trail;
-        saveCurrentRunRecord();
+        recordSaveDirty = true;
         updated = true;
     }
     if (score > bestScore) {
         bestScore = score;
-        saveBestScore();
+        recordSaveDirty = true;
         if (!dailyRun) {
             bestTrail = runPath.slice(0, 1200);
-            saveBestTrail();
+            recordSaveDirty = true;
         }
         triggerNewRecord();
         updateThemePicker();
         updated = true;
     }
+    if (recordSaveDirty && performance.now() - recordSaveAt > 4000) flushRecordSaves();
     return updated;
 }
 
@@ -638,7 +738,9 @@ function checkAchievements() {
 function updateDailyRunLabel() {
     const dateKey = getLocalDateKey();
     const record = loadDailyRecord(dateKey);
-    dailyRunDetails.textContent = "Отдельно · сегодня · " + runModifiers[getDailyModifier(dateKey)].name.toLowerCase();
+    const streakCount = currentDailyStreak();
+    dailyRunDetails.textContent = "Сегодня · " + runModifiers[getDailyModifier(dateKey)].name.toLowerCase()
+        + (streakCount > 0 ? " · " + pluralDays(streakCount) + " подряд" : " · отдельный рекорд");
     dailyBestScore.textContent = "РЕКОРД · " + String(record.score).padStart(2, "0");
 }
 
@@ -712,8 +814,94 @@ function saveBestTrail() {
     }
 }
 
+// Механики открываются постепенно: по одной ступени за каждый сыгранный забег.
+const mechanicTiers = { echo: 1, risk: 1, upgrades: 2, resonance: 2, hazard: 3, chrono: 3, tailCut: 3, pursuer: 4, hunt: 4, portals: 5, loop: 5, colorCombo: 5, chain: 5, biomeRules: 5 };
+const maxMechanicTier = 5;
+const tierTips = {
+    0: "Собирайте точки. Поймаете точку в такт импульсу «Ритм» — получите +1 очко.",
+    1: "Новое в этом забеге: эхо-точки (+3, быстро исчезают) и риск-точки (+4, живут 5 секунд).",
+    2: "Новое в этом забеге: усиления (каждые 5 подборов — три случайных на выбор) и резонанс: повороты в такт импульсу копят бонус к очкам.",
+    3: "Новое в этом забеге: опасные клетки, хроно-осколок и сброс хвоста — половина змейки превращается в очки.",
+    4: "Новое в этом забеге: преследователь. Иногда он устраивает погоню: продержитесь 20 секунд ради награды.",
+    5: "Новое в этом забеге: порталы, петля времени, цветовое комбо, цепочка целей и особые правила биомов. Теперь открыто всё."
+};
+const tierNames = {
+    1: "ЭХО И РИСК-ТОЧКИ", 2: "УСИЛЕНИЯ И РЕЗОНАНС", 3: "ЛОВУШКИ, ОТМОТКА И СБРОС ХВОСТА",
+    4: "ПРЕСЛЕДОВАТЕЛЬ И ПОГОНЯ", 5: "ПОРТАЛЫ, ПЕТЛЯ ВРЕМЕНИ И ПРАВИЛА БИОМОВ"
+};
+const statsStorageKey = storageKey + "-stats";
+let playerStats = loadPlayerStats();
+let runTier = maxMechanicTier;
+
+function loadPlayerStats() {
+    try {
+        const stored = JSON.parse(localStorage.getItem(statsStorageKey) || "null");
+        if (stored && typeof stored === "object" && Number.isFinite(stored.completed) && Number.isFinite(stored.tier)) {
+            return {
+                completed: Math.max(0, Math.floor(stored.completed)),
+                tier: Math.min(maxMechanicTier, Math.max(0, Math.floor(stored.tier))),
+                tierSeen: Number.isFinite(stored.tierSeen) ? stored.tierSeen : -1,
+                newsSeen: stored.newsSeen,
+                modes: stored.modes && typeof stored.modes === "object" ? stored.modes : {}
+            };
+        }
+    } catch (error) {
+        console.warn("Не удалось загрузить статистику игрока.", error);
+    }
+    // Тем, кто уже играл раньше, все механики доступны сразу.
+    const veteran = loadBestScore() >= 10;
+    return { completed: 0, tier: veteran ? maxMechanicTier : 0, tierSeen: veteran ? maxMechanicTier : -1, modes: {} };
+}
+
+function savePlayerStats() {
+    try {
+        localStorage.setItem(statsStorageKey, JSON.stringify(playerStats));
+    } catch (error) {
+        console.warn("Не удалось сохранить статистику игрока.", error);
+    }
+}
+
+function renderPlayerStats() {
+    statCompleted.textContent = String(playerStats.completed);
+    const favorite = Object.entries(playerStats.modes).sort((a, b) => b[1] - a[1])[0];
+    statFavorite.textContent = favorite && runModifiers[favorite[0]] ? runModifiers[favorite[0]].name : "—";
+    statBest.textContent = String(bestScore);
+}
+
+function mechanicUnlocked(name) {
+    return runTier >= mechanicTiers[name];
+}
+
+function showTip(text, duration = 6500) {
+    gameTipText.textContent = text;
+    gameTip.hidden = false;
+    window.clearTimeout(gameTipTimeout);
+    gameTipTimeout = window.setTimeout(() => {
+        gameTip.hidden = true;
+    }, duration);
+}
+
 function resetRound() {
     window.clearTimeout(gameTipTimeout);
+    runTier = dailyRun || preferences.allMechanics ? maxMechanicTier : playerStats.tier;
+    document.body.classList.toggle("lock-advanced", runTier < maxMechanicTier);
+    upgradeTokens = [];
+    upgradeTokensRemaining = 0;
+    phaseCharges = 0;
+    stasisRemaining = 0;
+    echoBoostCharges = 0;
+    rhythmBoostRemaining = 0;
+    resonance = 0;
+    resonanceRemaining = 0;
+    resonanceBeatIndex = -1;
+    iceSlideUsed = false;
+    pulseWalls = [];
+    huntRemaining = 0;
+    nextHuntAt = 16;
+    runPace = [];
+    paceLead = null;
+    document.body.classList.toggle("lock-tailcut", !mechanicUnlocked("tailCut"));
+    clearResumeCountdown();
     gameTip.hidden = true;
     runModifier = runModifiers[dailyRun ? getDailyModifier(dailyDateKey) : selectedModifier];
     dailyRngState = dailyRun ? hashSeed(dailyDateKey) : hashSeed(String(Date.now()) + String(Math.random()));
@@ -722,6 +910,9 @@ function resetRound() {
         : storageKey + "-run-" + (dailyRun ? "daily" : selectedModifier);
     currentRunRecord = dailyRun ? loadDailyRecord(dailyDateKey) : loadRunRecord(currentRunRecordKey);
     bestTrail = currentRunRecord.trail.length ? currentRunRecord.trail : loadBestTrail();
+    ghostPace = Array.isArray(currentRunRecord.pace)
+        ? currentRunRecord.pace.filter(value => Number.isFinite(value)).slice(0, 720)
+        : [];
     portalActive = false;
     portalLastIndex = -1;
     portalRouteRemaining = 0;
@@ -732,6 +923,7 @@ function resetRound() {
     snake = [{ x: 10, y: 10 }];
     direction = { x: 0, y: 0 };
     queuedDirection = direction;
+    pendingDirection = null;
     food = null;
     score = 0;
     foodCount = 0;
@@ -849,29 +1041,39 @@ function tileDistance(first, second) {
 
 function updateGameplayStatus() {
     if (challenge) {
-        challengeProgress.textContent = challenge.complete
+        setText(challengeProgress, challenge.complete
             ? "ГОТОВО"
             : challenge.id === "survive"
                 ? Math.floor(challenge.progress / 1000) + "/" + Math.ceil(challenge.target / 1000) + "с"
-                : Math.floor(challenge.progress) + "/" + challenge.target;
-        challengeDescription.textContent = challenge.complete ? challenge.reward : challenge.description;
+                : Math.floor(challenge.progress) + "/" + challenge.target);
+        setText(challengeDescription, challenge.complete ? challenge.reward : challenge.description);
         challengeBar.style.width = Math.min(100, challenge.progress / challenge.target * 100) + "%";
     }
-    routeComboStatus.textContent = "×" + routeCombo;
+    setText(routeComboStatus, "×" + routeCombo);
     portalControl.hidden = portals.length !== 2;
     portalControl.classList.toggle("is-active", portalActive);
     portalControl.setAttribute("aria-pressed", String(portalActive));
-    portalControl.querySelector("strong").textContent = portalActive ? "ЗАКРЫТЬ ПОРТАЛЫ" : "ВКЛЮЧИТЬ ПОРТАЛЫ";
-    routeComboDescription.textContent = "Подберите 3 разных цвета подряд для +2 очков";
+    setText(portalControl.querySelector("strong"), portalActive ? "ЗАКРЫТЬ ПОРТАЛЫ" : "ВКЛЮЧИТЬ ПОРТАЛЫ");
+    setText(routeComboDescription, "Подберите 3 разных цвета подряд для +2 очков");
     [...routeComboDots.children].forEach((dot, index) => {
         dot.classList.toggle("is-lit", index < Math.min(routeCombo, 3));
     });
-    const power = shieldCharges > 0 ? "ЩИТ ×" + shieldCharges
-        : magnetRemaining > 0 ? "МАГНИТ " + Math.ceil(magnetRemaining / 1000) + "с"
-            : doubleScoreCharges > 0 ? "×2 ОЧКИ · " + doubleScoreCharges
-                : "УСИЛЕНИЕ: НЕТ";
-    const hunter = pursuer ? "ОХОТНИК АКТИВЕН" : "ОХОТНИК: " + Math.max(0, 8 - foodCount) + " ДО ПОЯВЛЕНИЯ";
-    worldStatusText.textContent = power + " · " + hunter;
+    const powers = [];
+    if (shieldCharges > 0) powers.push("ЩИТ ×" + shieldCharges);
+    if (phaseCharges > 0) powers.push("ФАЗА ×" + phaseCharges);
+    if (magnetRemaining > 0) powers.push("МАГНИТ " + Math.ceil(magnetRemaining / 1000) + "с");
+    if (stasisRemaining > 0) powers.push("СТАЗИС " + Math.ceil(stasisRemaining / 1000) + "с");
+    if (doubleScoreCharges > 0) powers.push("×2 · " + doubleScoreCharges);
+    if (echoBoostCharges > 0) powers.push("ЭХО · " + echoBoostCharges);
+    if (rhythmBoostRemaining > 0) powers.push("МЕТРОНОМ " + Math.ceil(rhythmBoostRemaining / 1000) + "с");
+    const power = powers.length ? powers.slice(0, 2).join(" · ") : "УСИЛЕНИЕ: НЕТ";
+    const hunter = huntRemaining > 0 ? "ПОГОНЯ " + Math.ceil(huntRemaining / 1000) + "с"
+        : pursuer ? "ОХОТНИК АКТИВЕН" : "ОХОТНИК: " + Math.max(0, 8 - foodCount) + " ДО ПОЯВЛЕНИЯ";
+    setText(worldStatusText, mechanicUnlocked("pursuer") ? power + " · " + hunter : power);
+    setText(hudPower, huntRemaining > 0 ? "ПОГОНЯ " + Math.ceil(huntRemaining / 1000) + "с"
+        : upgradeTokens.length ? "ВЫБЕРИТЕ УСИЛЕНИЕ" : power === "УСИЛЕНИЕ: НЕТ" ? "" : power);
+    hudPower.classList.toggle("is-call", upgradeTokens.length > 0 || huntRemaining > 0);
+    boardWrap.classList.toggle("is-hunt", huntRemaining > 0);
     const hunterNear = pursuerSegments && pursuerSegments.some(segment => tileDistance(segment, snake[0]) <= 5);
     boardWrap.classList.toggle("is-danger", hazards.some(hazard => hazard.state === "warning") || hunterNear);
 }
@@ -914,29 +1116,413 @@ function togglePortals() {
     announce(portalActive ? "Порталы активированы. Пройдите через пару для бонуса." : "Порталы выключены.");
 }
 
+const upgradeTokenLifetime = 9000;
+// Пул усилений: каждый раз предлагаются три случайных из доступных.
+const upgradeDefs = {
+    shield: { name: "ЩИТ", label: "ЩИТ", symbol: "◆", color: "#56dcff",
+        description: "Один раз защитит от ловушки, стены или охотника",
+        message: "Щит заряжен: он защитит от одного столкновения с опасностью.",
+        apply: () => { shieldCharges++; } },
+    magnet: { name: "МАГНИТ", label: "МАГНИТ", symbol: "∩", color: "#ff5ac4",
+        description: "Притягивает еду 10 секунд",
+        message: "Магнит активен на 10 секунд.",
+        apply: () => { magnetRemaining = 10000; } },
+    double: { name: "×2 ОЧКИ", label: "×2", symbol: "×2", color: "#ffc94d",
+        description: "Удваивает очки за 5 подборов",
+        message: "Следующие 5 подборов принесут двойные очки.",
+        apply: () => { doubleScoreCharges += 5; } },
+    phase: { name: "ФАЗА", label: "ФАЗА", symbol: "◌", color: "#a88bff",
+        description: "Один раз пройдёте сквозь собственный хвост",
+        message: "Фаза заряжена: одно столкновение с хвостом пройдёт насквозь.",
+        apply: () => { phaseCharges++; } },
+    stasis: { name: "СТАЗИС", label: "СТАЗИС", symbol: "II", color: "#8fd3ff",
+        description: "Охотник замирает на 8 секунд",
+        message: "Стазис: охотник замер на 8 секунд.",
+        available: () => Boolean(pursuer),
+        apply: () => { stasisRemaining = 8000; } },
+    echoRain: { name: "ЭХО-ДОЖДЬ", label: "ЭХО", symbol: "+3", color: "#6ca9ff",
+        description: "Следующие 3 точки дают по +3",
+        message: "Эхо-дождь: следующие три точки принесут по +3.",
+        apply: () => { echoBoostCharges = 3; } },
+    clarity: { name: "ЯСНОСТЬ", label: "ЯСНОСТЬ", symbol: "◎", color: "#c2ff00",
+        description: "Полный заряд «Фокуса»",
+        message: "Ясность: «Фокус» заряжен полностью.",
+        available: () => focusCharges < 3,
+        apply: () => { focusCharges = 3; updateFocus(); } },
+    trim: { name: "ЛЁГКОСТЬ", label: "−5", symbol: "−5", color: "#ff9c5a",
+        description: "Змейка короче на 5 сегментов",
+        message: "Лёгкость: змейка стала короче на пять сегментов.",
+        available: () => snake.length >= 9,
+        apply: () => { snake.splice(Math.max(3, snake.length - 5)); } },
+    metronome: { name: "МЕТРОНОМ", label: "РИТМ", symbol: "♪", color: "#f2f2fa",
+        description: "Окно ритма вдвое шире на 20 секунд",
+        message: "Метроном: окно ритма расширено на 20 секунд.",
+        apply: () => { rhythmBoostRemaining = 20000; } },
+    chrono: { name: "ХРОНО", label: "ХРОНО", symbol: "↺", color: "#dabaff",
+        description: "Одна отмотка времени при столкновении",
+        message: "Хроно: одна отмотка времени готова.",
+        available: () => mechanicUnlocked("chrono") && rewindCharges === 0,
+        apply: () => { rewindCharges = 1; nextRewindFoodAt = foodCount + 8; updateRewindLife(); } }
+};
+
+function pickUpgradeOffer() {
+    const pool = Object.keys(upgradeDefs).filter(id => !upgradeDefs[id].available || upgradeDefs[id].available());
+    for (let index = pool.length - 1; index > 0; index--) {
+        const other = Math.floor(gameRandom() * (index + 1));
+        [pool[index], pool[other]] = [pool[other], pool[index]];
+    }
+    return pool.slice(0, 3);
+}
+
+function applyUpgrade(upgrade) {
+    const def = upgradeDefs[upgrade];
+    if (!def) return;
+    activeUpgrade = upgrade;
+    def.apply();
+    announce(def.message);
+    updateScore();
+}
+
 function chooseUpgrade(upgrade) {
     if (gameState !== "upgrade") return;
-    activeUpgrade = upgrade;
-    if (upgrade === "shield") shieldCharges++;
-    else if (upgrade === "magnet") magnetRemaining = 10000;
-    else if (upgrade === "double") doubleScoreCharges += 5;
+    applyUpgrade(upgrade);
     gameState = "running";
     duckSoundtrack(false);
     startSoundtrack();
     upgradePicker.hidden = true;
     overlay.classList.add("is-hidden");
+    beginResumeCountdown(800);
     updateControls();
     updateGameplayStatus();
-    announce(upgrade === "shield" ? "Щит заряжен: он защитит от одного столкновения с опасностью."
-        : upgrade === "magnet" ? "Магнит активен на 10 секунд."
-            : "Следующие 5 подборов принесут двойные очки.");
     draw();
 }
 
+// Усиления без остановки игры: три жетона появляются на поле неподалёку от головы.
+function spawnUpgradeTokens() {
+    upgradeTokens = [];
+    const offer = pickUpgradeOffer();
+    if (offer.length < 3) return false;
+    const head = snake[0];
+    const near = [];
+    const far = [];
+    for (let y = 0; y < tileCount; y++) {
+        for (let x = 0; x < tileCount; x++) {
+            if (!isTileAvailable(x, y)) continue;
+            const distance = tileDistance({ x, y }, head);
+            if (distance >= 3 && distance <= 8) near.push({ x, y });
+            else if (distance > 8) far.push({ x, y });
+        }
+    }
+    const shuffle = list => {
+        for (let index = list.length - 1; index > 0; index--) {
+            const other = Math.floor(gameRandom() * (index + 1));
+            [list[index], list[other]] = [list[other], list[index]];
+        }
+        return list;
+    };
+    const picked = [];
+    for (const tile of [...shuffle(near), ...shuffle(far)]) {
+        if (picked.every(other => tileDistance(other, tile) >= 3)) picked.push(tile);
+        if (picked.length === 3) break;
+    }
+    if (picked.length < 3) return false;
+    upgradeTokens = picked.map((tile, index) => ({ ...tile, type: offer[index] }));
+    upgradeTokensRemaining = upgradeTokenLifetime;
+    upgradeTokens.forEach(token => emitPickupWave(token.x, token.y, upgradeDefs[token.type].color));
+    announce("Усиления на поле: " + offer.map(id => upgradeDefs[id].name.toLowerCase()).join(", ") + ". Заберите одно.");
+    showContextTip("upgradeField");
+    return true;
+}
+
+function collectUpgradeToken(token) {
+    const color = upgradeDefs[token.type].color;
+    upgradeTokens = [];
+    upgradeTokensRemaining = 0;
+    applyUpgrade(token.type);
+    emitPickupWave(token.x, token.y, color);
+    emitParticles(token.x * gridSize + gridSize / 2, token.y * gridSize + gridSize / 2, color, 20, upgradeDefs[token.type].name);
+    triggerImpact(3, 170);
+    playSound("chronoPickup");
+    updateGameplayStatus();
+}
+
+// Сброс хвоста: половина змейки превращается в очки, поток обнуляется.
+const tailCutMinLength = 8;
+function tailCutValue() {
+    const cut = Math.floor(snake.length / 2);
+    return { cut, points: Math.floor(cut / 2) };
+}
+
+function updateTailCut() {
+    if (!snake) return;
+    const ready = gameState === "running" && resumeCountdown === 0 && mechanicUnlocked("tailCut") && snake.length >= tailCutMinLength;
+    tailCutButton.disabled = !ready;
+    tailCutLabel.textContent = snake.length >= tailCutMinLength
+        ? "Сбросить хвост · +" + tailCutValue().points
+        : "Сброс хвоста · от " + tailCutMinLength + " сегментов";
+    if (ready) showContextTip("tailCut");
+}
+
+function cutTail() {
+    if (gameState !== "running" || resumeCountdown > 0 || !mechanicUnlocked("tailCut") || snake.length < tailCutMinLength) return;
+    const { cut, points } = tailCutValue();
+    const removed = snake.splice(snake.length - cut);
+    removed.forEach((segment, index) => {
+        if (index % 2 === 0) emitParticles(segment.x * gridSize + gridSize / 2, segment.y * gridSize + gridSize / 2, "#ff9c5a", 5);
+    });
+    score += points;
+    combo = 0;
+    comboRemaining = 0;
+    emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#ff9c5a", 10, "+" + points);
+    triggerImpact(3, 170);
+    playSound("riskPickup");
+    recordScoreIfNeeded();
+    updateScore();
+    announce("Хвост сброшен: +" + points + " очков, поток обнулён.");
+}
+
+// Резонанс: повороты, сделанные в такт импульсу, копят бонус к очкам и слои в музыке.
+function resonanceBonus() {
+    return resonance >= 6 ? 2 : resonance >= 3 ? 1 : 0;
+}
+
+function registerTurnBeat() {
+    if (!mechanicUnlocked("resonance") || (direction.x === 0 && direction.y === 0) || !isPerfectBeat()) return;
+    const beatIndex = Math.floor(rhythmClock / rhythmBeatLength);
+    if (beatIndex === resonanceBeatIndex) return;
+    resonanceBeatIndex = beatIndex;
+    const before = resonanceBonus();
+    resonance = Math.min(8, resonance + 1);
+    resonanceRemaining = 7000;
+    playSound("beat");
+    if (resonanceBonus() > before) {
+        showContextTip("resonance");
+        announce("Резонанс ×" + resonance + ": каждый подбор даёт +" + resonanceBonus() + ".");
+        emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#c2ff00", 10, "РЕЗОНАНС");
+    }
+    updateRhythm();
+}
+
+function rhythmWindow() {
+    return runModifier.rhythmWindow * (rhythmBoostRemaining > 0 ? 2 : 1);
+}
+
+// Правила биомов: лёд, тьма и пульсирующие стены.
+function biomeRule() {
+    return mechanicUnlocked("biomeRules") ? biomes[currentBiomeIndex].kind : "garden";
+}
+
+function pulseWallsActive() {
+    return pulseWalls.length > 0 && Math.floor(rhythmClock / rhythmBeatLength) % 2 === 1;
+}
+
+function generatePulseWalls() {
+    const walls = [];
+    for (let attempt = 0; attempt < 60 && walls.length < 12; attempt++) {
+        const horizontal = gameRandom() < 0.5;
+        const startX = Math.floor(gameRandom() * (tileCount - (horizontal ? 4 : 0)));
+        const startY = Math.floor(gameRandom() * (tileCount - (horizontal ? 0 : 4)));
+        const segment = [0, 1, 2, 3].map(offset => ({
+            x: startX + (horizontal ? offset : 0),
+            y: startY + (horizontal ? 0 : offset)
+        }));
+        const free = segment.every(tile => isTileAvailable(tile.x, tile.y)
+            && tileDistance(tile, snake[0]) >= 5
+            && walls.every(other => tileDistance(other, tile) >= 3));
+        if (free) walls.push(...segment);
+    }
+    return walls;
+}
+
+function onBiomeChanged() {
+    iceSlideUsed = false;
+    const rule = biomeRule();
+    pulseWalls = rule === "dusk" ? generatePulseWalls() : [];
+    if (rule === "aurora") showContextTip("biomeAurora");
+    else if (rule === "cosmos") showContextTip("biomeCosmos");
+    else if (rule === "dusk") showContextTip("biomeDusk");
+}
+
+// Погоня: раз в несколько подборов охотник ускоряется на 20 секунд.
+function startHunt() {
+    huntRemaining = 20000;
+    nextHuntAt = foodCount + 14;
+    playSound("danger");
+    showContextTip("hunt");
+    announce("Погоня! Охотник ускорился на 20 секунд.");
+}
+
+function finishHunt() {
+    huntRemaining = 0;
+    score += 8;
+    focusCharges = 3;
+    emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#ffc94d", 22, "+8 ВЫЖИЛИ");
+    triggerImpact(4, 200);
+    playSound("chronoPickup");
+    recordScoreIfNeeded();
+    updateScore();
+    updateFocus();
+    announce("Погоня окончена: +8 очков и полный фокус.");
+}
+
+// Гонка с призраком: счёт сверяется с рекордным забегом каждые 5 секунд.
+function onPaceCheckpoint() {
+    const index = runPace.length - 1;
+    if (index >= ghostPace.length) {
+        paceLead = null;
+        updateScore();
+        return;
+    }
+    paceLead = score - ghostPace[index];
+    if (paceLead > 0 && (index + 1) % 3 === 0) {
+        score += 2;
+        paceLead += 2;
+        emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#56dcff", 12, "+2 ТЕМП");
+        recordScoreIfNeeded();
+        announce("Вы опережаете свой рекорд: +2 очка.");
+    }
+    updateScore();
+}
+
+// Серия ежедневных забегов.
+const dailyStreakKey = storageKey + "-daily-streak";
+function loadDailyStreak() {
+    try {
+        const stored = JSON.parse(localStorage.getItem(dailyStreakKey) || "null");
+        if (stored && typeof stored.last === "string" && Number.isInteger(stored.count) && stored.count > 0) return stored;
+    } catch (error) {
+        console.warn("Не удалось загрузить серию ежедневных забегов.", error);
+    }
+    return { last: "", count: 0 };
+}
+
+function currentDailyStreak() {
+    const streak = loadDailyStreak();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return streak.last === getLocalDateKey() || streak.last === getLocalDateKey(yesterday) ? streak.count : 0;
+}
+
+function registerDailyStreak() {
+    const today = getLocalDateKey();
+    const streak = loadDailyStreak();
+    if (streak.last === today) return streak.count;
+    const count = currentDailyStreak() + 1;
+    try {
+        localStorage.setItem(dailyStreakKey, JSON.stringify({ last: today, count }));
+    } catch (error) {
+        console.warn("Не удалось сохранить серию ежедневных забегов.", error);
+    }
+    return count;
+}
+
+function pluralDays(count) {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return count + " день";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return count + " дня";
+    return count + " дней";
+}
+
+function shareResult() {
+    if (!lastRunSummary) return;
+    const summary = lastRunSummary;
+    const lines = [
+        "Змейка INFINITE — " + (summary.daily ? "ежедневный забег " + summary.date : "режим «" + summary.mode + "»"),
+        "Очки: " + summary.score + " · лучшая серия ×" + summary.combo + " · время " + summary.time
+    ];
+    if (summary.streak > 1) lines.push("Дней подряд: " + summary.streak);
+    if (/^https?:$/.test(location.protocol)) lines.push(location.origin + location.pathname);
+    const text = lines.join("\n");
+    const done = message => {
+        summaryShareButton.classList.add("is-done");
+        announce(message);
+        window.setTimeout(() => summaryShareButton.classList.remove("is-done"), 1600);
+    };
+    const copy = () => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => done("Результат скопирован."), () => announce("Не удалось скопировать результат."));
+        } else {
+            const area = document.createElement("textarea");
+            area.value = text;
+            area.setAttribute("readonly", "");
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            overlay.appendChild(area);
+            area.select();
+            const copied = document.execCommand("copy");
+            area.remove();
+            if (copied) done("Результат скопирован.");
+            else announce("Не удалось скопировать результат.");
+        }
+    };
+    if (navigator.share && isTouchDevice) {
+        navigator.share({ text }).then(() => done("Результат отправлен."), error => {
+            if (!error || error.name !== "AbortError") copy();
+        });
+    } else {
+        copy();
+    }
+}
+
+// Короткий отсчёт перед продолжением: змейка не срывается с места сразу после паузы.
+function beginResumeCountdown(duration) {
+    if (direction.x === 0 && direction.y === 0) return;
+    resumeCountdown = duration;
+    resumeCountLabel = 0;
+    tickResumeCountdown(0);
+}
+
+function tickResumeCountdown(elapsed) {
+    resumeCountdown = Math.max(0, resumeCountdown - elapsed);
+    if (resumeCountdown === 0) {
+        clearResumeCountdown();
+        timeSinceStep = 0;
+        return;
+    }
+    const label = Math.ceil(resumeCountdown / 400);
+    if (label !== resumeCountLabel) {
+        resumeCountLabel = label;
+        resumeCount.textContent = String(label);
+        resumeCount.hidden = false;
+        resumeCount.classList.remove("is-tick");
+        void resumeCount.offsetWidth;
+        resumeCount.classList.add("is-tick");
+    }
+}
+
+function clearResumeCountdown() {
+    resumeCountdown = 0;
+    resumeCountLabel = 0;
+    resumeCount.hidden = true;
+    updateTailCut();
+}
+
+// Выбор усиления с клавиатуры: ← щит, ↓ (или ↑) магнит, → ×2 очки; также 1 / 2 / 3.
+const upgradeKeyCodes = {
+    ArrowLeft: "shield", KeyA: "shield", Digit1: "shield", Numpad1: "shield",
+    ArrowDown: "magnet", ArrowUp: "magnet", KeyS: "magnet", KeyW: "magnet", Digit2: "magnet", Numpad2: "magnet",
+    ArrowRight: "double", KeyD: "double", Digit3: "double", Numpad3: "double"
+};
+const upgradeKeyGuard = 350;
+let upgradeOpenedAt = 0;
+
 function showUpgradeSelection() {
     gameState = "upgrade";
+    upgradeOpenedAt = performance.now();
     duckSoundtrack(true);
     showOverlay("УСИЛЕНИЕ ДОСТУПНО", "Выберите силу", "Каждые пять подборов можно выбрать один бонус.", "Продолжить");
+    const offer = pickUpgradeOffer();
+    upgradeButtons.forEach((button, index) => {
+        const def = upgradeDefs[offer[index]];
+        button.hidden = !def;
+        if (!def) return;
+        button.dataset.upgrade = offer[index];
+        button.style.setProperty("--glyph", def.color);
+        button.innerHTML = '<span class="upgrade-glyph" aria-hidden="true">' + def.symbol + '</span>'
+            + '<kbd class="upgrade-key" aria-hidden="true">' + ["←", "↓", "→"][index] + '</kbd>'
+            + '<strong>' + def.name + '</strong><span>' + def.description + '</span>';
+    });
     overlay.classList.add("is-upgrade");
     startButton.hidden = true;
     overlayHint.hidden = true;
@@ -948,10 +1534,21 @@ function startGame() {
     if (gameState === "upgrade") return;
     if (gameState === "paused") {
         gameState = "running";
+        beginResumeCountdown(1200);
     } else {
         resetRound();
         gameState = "running";
         announce("Игра началась. Выберите направление.");
+        if (!dailyRun && !preferences.allMechanics && runTier > playerStats.tierSeen) {
+            playerStats.tierSeen = runTier;
+            playerStats.newsSeen = 2;
+            savePlayerStats();
+            showTip(tierTips[runTier], 9000);
+        } else if (runTier === maxMechanicTier && playerStats.newsSeen !== 2) {
+            playerStats.newsSeen = 2;
+            savePlayerStats();
+            showTip("Новое в игре: десять усилений, сброс хвоста, резонанс за повороты в такт, правила биомов и погоня.", 10000);
+        }
     }
     runSetup.hidden = true;
     overlay.classList.remove("is-setup");
@@ -1006,6 +1603,7 @@ function startDailyRun() {
 function pauseGame() {
     if (gameState === "running") {
         gameState = "paused";
+        flushRecordSaves();
         stopSoundtrack();
         showOverlay("ПЕРЕДЫШКА", "Пауза", "Когда будете готовы — продолжим с того же места.", "Продолжить");
         announce("Пауза.");
@@ -1023,6 +1621,9 @@ function pauseGame() {
 function endGame() {
     if (gameState === "over") return;
     gameState = "over";
+    flushRecordSaves();
+    window.clearTimeout(gameTipTimeout);
+    gameTip.hidden = true;
     stopSoundtrack();
     if (dailyRun) {
         dailyRuns++;
@@ -1033,7 +1634,7 @@ function endGame() {
         }
     }
     const newlyUnlocked = checkAchievements();
-    emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#ff3e78", 24, "СТОЛКНОВЕНИЕ");
+    emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#ff5470", 24, "СТОЛКНОВЕНИЕ");
     triggerImpact(5, 260);
     updateFocus();
     updateRhythm();
@@ -1064,7 +1665,35 @@ function endGame() {
         summaryProgress.setAttribute("aria-valuetext", "Все темы открыты");
         summaryProgressBar.style.width = "100%";
     }
+    if (score > 0 && score > bestScoreAtRoundStart && score >= currentRunRecord.score) {
+        currentRunRecord.pace = runPace.concat([score]);
+        saveCurrentRunRecord();
+    }
+    const streakCount = dailyRun ? registerDailyStreak() : 0;
+    summaryStreak.hidden = streakCount < 1;
+    summaryStreak.textContent = streakCount >= 1 ? "ЕЖЕДНЕВНЫЕ ЗАБЕГИ ПОДРЯД · " + pluralDays(streakCount).toUpperCase() : "";
+    lastRunSummary = {
+        daily: dailyRun,
+        date: dailyDateKey.split("-").reverse().slice(0, 2).join("."),
+        mode: runModifier.name.charAt(0) + runModifier.name.slice(1).toLowerCase(),
+        score,
+        combo: bestCombo,
+        time: String(Math.floor(elapsedSeconds / 60)).padStart(2, "0") + ":" + String(elapsedSeconds % 60).padStart(2, "0"),
+        streak: streakCount
+    };
+    updateDailyRunLabel();
+    const tierBefore = playerStats.tier;
+    const modeKey = Object.keys(runModifiers).find(key => runModifiers[key] === runModifier);
+    playerStats.completed++;
+    if (modeKey) playerStats.modes[modeKey] = (playerStats.modes[modeKey] || 0) + 1;
+    if (!dailyRun && !preferences.allMechanics && foodCount >= 1 && playerStats.tier < maxMechanicTier) playerStats.tier++;
+    savePlayerStats();
+    renderPlayerStats();
+    summaryUnlock.hidden = playerStats.tier === tierBefore;
+    summaryUnlock.textContent = playerStats.tier > tierBefore ? "В СЛЕДУЮЩЕМ ЗАБЕГЕ ОТКРОЕТСЯ: " + tierNames[playerStats.tier] : "";
     roundSummary.hidden = false;
+    resultActions.hidden = false;
+    startButton.hidden = true;
     overlay.classList.add("is-results");
     announce("Игра окончена. Ваш счёт: " + score + ".");
     playSound("end");
@@ -1080,23 +1709,31 @@ function updateRewindLife() {
 function updateRhythm() {
     const phase = rhythmClock % rhythmBeatLength;
     const isRunning = gameState === "running";
-    const inBeat = isRunning && phase < runModifier.rhythmWindow;
-    rhythmProgress.style.width = (isRunning ? phase / rhythmBeatLength * 100 : 0) + "%";
+    const inBeat = isRunning && phase < rhythmWindow();
+    rhythmMeter.classList.toggle("is-resonant", isRunning && resonance >= 3);
+    // transform вместо width: полоса двигается без пересчёта вёрстки.
+    const progressShare = isRunning ? Math.round(phase / rhythmBeatLength * 500) / 500 : 0;
+    if (rhythmProgress.__share !== progressShare) {
+        rhythmProgress.__share = progressShare;
+        rhythmProgress.style.transform = "scaleX(" + progressShare + ")";
+    }
     rhythmMeter.classList.toggle("is-beat", inBeat);
     rhythmMeter.classList.toggle("is-perfect", rhythmPerfectMessage > 0);
     if (!isRunning) {
-        rhythmStatus.textContent = gameState === "paused" ? "ПАУЗА" : "СТАРТУЙТЕ ДЛЯ РИТМА";
+        setText(rhythmStatus, gameState === "paused" ? "ПАУЗА" : "СТАРТУЙТЕ ДЛЯ РИТМА");
     } else if (loopRemaining > 0) {
-        rhythmStatus.textContent = "ПЕТЛЯ " + Math.ceil(loopRemaining / 1000) + "с";
+        setText(rhythmStatus, "ПЕТЛЯ " + Math.ceil(loopRemaining / 1000) + "с");
     } else if (rhythmPerfectMessage > 0) {
-        rhythmStatus.textContent = "В ТАКТЕ +1";
+        setText(rhythmStatus, "В ТАКТЕ +1");
     } else {
-        rhythmStatus.textContent = inBeat ? "СЕЙЧАС!" : "ЛОВИТЕ ИМПУЛЬС";
+        setText(rhythmStatus, resonance > 0
+            ? "РЕЗОНАНС ×" + resonance + (resonanceBonus() ? " · +" + resonanceBonus() : "")
+            : inBeat ? "СЕЙЧАС!" : "ЛОВИТЕ ИМПУЛЬС");
     }
 }
 
 function isPerfectBeat() {
-    return rhythmClock % rhythmBeatLength < runModifier.rhythmWindow;
+    return rhythmClock % rhythmBeatLength < rhythmWindow();
 }
 
 function startTimeLoop() {
@@ -1131,7 +1768,7 @@ function createPortals() {
     portals = [first, second];
     portalActive = true;
     portalRemaining = 10000;
-    portalOpenRemaining = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    portalOpenRemaining = reducedMotionQuery.matches
         ? 0
         : visualDurations.portalOpen;
     showContextTip("portal");
@@ -1188,7 +1825,7 @@ function createPursuer() {
 function movePursuer() {
     if (!pursuer) return false;
     pursuerStepCounter++;
-    if (pursuerStepCounter < (runModifier === runModifiers.hunter ? 3 : 4)) return false;
+    if (pursuerStepCounter < (huntRemaining > 0 ? 2 : runModifier === runModifiers.hunter ? 3 : 4)) return false;
     pursuerStepCounter = 0;
 
     const options = [
@@ -1269,6 +1906,27 @@ function updateTimedMechanics(elapsed) {
         ghostRemaining = Math.max(0, ghostRemaining - elapsed);
         if (ghostRemaining === 0) ghostTrail = [];
     }
+    while (roundElapsed >= (runPace.length + 1) * 5000 && runPace.length < 720) {
+        runPace.push(score);
+        onPaceCheckpoint();
+    }
+    if (stasisRemaining > 0) stasisRemaining = Math.max(0, stasisRemaining - elapsed);
+    if (rhythmBoostRemaining > 0) rhythmBoostRemaining = Math.max(0, rhythmBoostRemaining - elapsed);
+    if (resonanceRemaining > 0) {
+        resonanceRemaining = Math.max(0, resonanceRemaining - elapsed);
+        if (resonanceRemaining === 0) resonance = 0;
+    }
+    if (huntRemaining > 0) {
+        huntRemaining = Math.max(0, huntRemaining - elapsed);
+        if (huntRemaining === 0 || !pursuer) finishHunt();
+    }
+    if (upgradeTokensRemaining > 0) {
+        upgradeTokensRemaining = Math.max(0, upgradeTokensRemaining - elapsed);
+        if (upgradeTokensRemaining === 0) {
+            upgradeTokens = [];
+            announce("Усиления исчезли.");
+        }
+    }
     if (riskRemaining > 0) {
         riskRemaining = Math.max(0, riskRemaining - elapsed);
         if (riskRemaining === 0) {
@@ -1298,7 +1956,12 @@ function updateTimedMechanics(elapsed) {
         }
     }
     if (rhythmPerfectMessage > 0) rhythmPerfectMessage = Math.max(0, rhythmPerfectMessage - elapsed);
-    updateGameplayStatus();
+    // Таймеры в статусе показывают секунды — восьми обновлений в секунду достаточно.
+    statusClock += elapsed;
+    if (statusClock >= 120) {
+        statusClock = 0;
+        updateGameplayStatus();
+    }
     updateRhythm();
 }
 
@@ -1364,7 +2027,7 @@ function resizeCanvas() {
     const displaySize = canvas.getBoundingClientRect().width;
     if (!displaySize) return;
 
-    const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 4);
+    const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
     const pixelSize = Math.round(displaySize * pixelRatio);
     if (canvas.width !== pixelSize || canvas.height !== pixelSize) {
         canvas.width = pixelSize;
@@ -1375,7 +2038,7 @@ function resizeCanvas() {
 }
 
 function emitPickupWave(x, y, color) {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = reducedMotionQuery.matches;
     const farthestCell = Math.max(
         Math.hypot(x, y),
         Math.hypot(tileCount - 1 - x, y),
@@ -1394,7 +2057,7 @@ function emitPickupWave(x, y, color) {
 }
 
 function emitParticles(x, y, color, count = 14, label = "") {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = reducedMotionQuery.matches;
     const particleCount = reducedMotion ? Math.min(count, 5) : count;
     for (let index = 0; index < particleCount; index++) {
         const angle = Math.random() * Math.PI * 2;
@@ -1426,13 +2089,13 @@ function emitParticles(x, y, color, count = 14, label = "") {
 }
 
 function triggerImpact(strength = 3, duration = 180) {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (reducedMotionQuery.matches) return;
     shakeStrength = Math.max(shakeStrength, strength);
     shakeRemaining = Math.max(shakeRemaining, duration);
 }
 
 function triggerPickupZoom(x, y) {
-    if (cameraZoomRemaining > 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (cameraZoomRemaining > 0 || reducedMotionQuery.matches) return;
     cameraZoomAnchor = {
         x: x * gridSize + gridSize / 2,
         y: y * gridSize + gridSize / 2
@@ -1441,13 +2104,13 @@ function triggerPickupZoom(x, y) {
 }
 
 function triggerHeadPickup() {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (reducedMotionQuery.matches) return;
     headPickupRemaining = visualDurations.headPickup;
     pickupMoodRemaining = 850;
 }
 
 function triggerRouteCombo(color) {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (reducedMotionQuery.matches) return;
     comboFlashRemaining = visualDurations.comboFlash;
     boardWrap.style.setProperty("--combo-accent", color);
     boardWrap.classList.remove("is-combo");
@@ -1456,15 +2119,15 @@ function triggerRouteCombo(color) {
 }
 
 function pickupColorForType(type) {
-    if (type === "risk") return "#ff3e78";
-    if (type === "chrono") return "#b76bff";
-    if (type === "echo") return "#3be8ff";
+    if (type === "risk") return "#ff5470";
+    if (type === "chrono") return "#a88bff";
+    if (type === "echo") return "#56dcff";
     if (type === "loop") return "#6ca9ff";
-    return "#ffd447";
+    return "#ffc94d";
 }
 
 function triggerNewRecord() {
-    if (newRecordRemaining > 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (newRecordRemaining > 0 || reducedMotionQuery.matches) return;
     newRecordRemaining = visualDurations.newRecord;
     boardWrap.classList.add("is-new-record");
     scoreCard.classList.add("is-new-record");
@@ -1520,7 +2183,18 @@ function saveTimelineFrame() {
         activeUpgrade,
         shieldCharges,
         magnetRemaining,
-        doubleScoreCharges
+        doubleScoreCharges,
+        upgradeTokens: upgradeTokens.map(token => ({ ...token })),
+        upgradeTokensRemaining,
+        phaseCharges,
+        stasisRemaining,
+        echoBoostCharges,
+        rhythmBoostRemaining,
+        resonance,
+        resonanceRemaining,
+        pulseWalls: pulseWalls.map(tile => ({ ...tile })),
+        huntRemaining,
+        nextHuntAt
     });
     if (timeline.length > timelineLimit) timeline.shift();
 }
@@ -1541,6 +2215,7 @@ function rewindTime() {
     snake = frame.snake.map(segment => ({ ...segment }));
     direction = { ...frame.direction };
     queuedDirection = { ...frame.queuedDirection };
+    pendingDirection = null;
     food = frame.food ? { ...frame.food } : null;
     riskFood = frame.riskFood ? { ...frame.riskFood } : null;
     riskRemaining = frame.riskRemaining;
@@ -1585,6 +2260,18 @@ function rewindTime() {
     shieldCharges = frame.shieldCharges;
     magnetRemaining = frame.magnetRemaining;
     doubleScoreCharges = frame.doubleScoreCharges;
+    upgradeTokens = (frame.upgradeTokens || []).map(token => ({ ...token }));
+    upgradeTokensRemaining = frame.upgradeTokensRemaining || 0;
+    phaseCharges = frame.phaseCharges || 0;
+    stasisRemaining = frame.stasisRemaining || 0;
+    echoBoostCharges = frame.echoBoostCharges || 0;
+    rhythmBoostRemaining = frame.rhythmBoostRemaining || 0;
+    resonance = frame.resonance || 0;
+    resonanceRemaining = frame.resonanceRemaining || 0;
+    pulseWalls = (frame.pulseWalls || []).map(tile => ({ ...tile }));
+    huntRemaining = frame.huntRemaining || 0;
+    nextHuntAt = frame.nextHuntAt || foodCount + 14;
+    iceSlideUsed = false;
 
     if (food && food.type === "chrono") {
         food = { ...food, type: "normal" };
@@ -1606,7 +2293,7 @@ function rewindTime() {
     updateControls();
     boardWrap.classList.toggle("is-time-loop", loopRemaining > 0);
     showRewindEffect(rewoundSteps);
-    emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#b76bff", 26, "ОТМОТКА");
+    emitParticles(snake[0].x * gridSize + gridSize / 2, snake[0].y * gridSize + gridSize / 2, "#a88bff", 26, "ОТМОТКА");
     triggerImpact(5, 250);
     announce("Время перемотано на " + rewoundSteps + " ходов. Жизнь использована.");
     return true;
@@ -1620,6 +2307,8 @@ function showRewindEffect(steps) {
 }
 
 function showOverlay(kicker, title, copy, buttonLabel) {
+    clearResumeCountdown();
+    resultActions.hidden = true;
     overlay.classList.remove("is-upgrade");
     overlay.classList.remove("is-results");
     overlay.classList.remove("is-setup");
@@ -1636,6 +2325,8 @@ function showOverlay(kicker, title, copy, buttonLabel) {
 }
 
 function updateControls() {
+    document.body.classList.toggle("is-running", gameState === "running");
+    updateTailCut();
     pauseButton.disabled = gameState !== "running" && gameState !== "paused";
     pauseButton.setAttribute("aria-label", gameState === "paused" ? "Продолжить игру" : "Пауза");
     pauseLabel.textContent = gameState === "paused" ? "Продолжить" : "Пауза";
@@ -1656,6 +2347,9 @@ function updateFocus() {
     focusChargesElements.forEach((element, index) => {
         element.classList.toggle("is-charged", index < focusCharges);
     });
+    hudFocusDots.forEach((dot, index) => {
+        dot.classList.toggle("is-charged", index < focusCharges);
+    });
 }
 
 function activateFocus() {
@@ -1674,6 +2368,9 @@ function announce(message) {
 
 function updateScore() {
     scoreValue.textContent = String(score).padStart(2, "0");
+    hudScore.textContent = String(score).padStart(2, "0");
+    hudFlow.textContent = "×" + combo;
+    hudFlow.classList.toggle("is-hot", combo >= 3);
     bestValue.textContent = String(currentRunRecord.score).padStart(2, "0");
     dailyBestScore.textContent = "РЕКОРД · " + String(loadDailyRecord(getLocalDateKey()).score).padStart(2, "0");
     const level = Math.floor(score / 5) + 1;
@@ -1694,10 +2391,11 @@ function updateScore() {
     const nextBiomeIndex = Math.floor((level - 1) / 4) % biomes.length;
     if (nextBiomeIndex !== currentBiomeIndex) {
         currentBiomeIndex = nextBiomeIndex;
-        biomeTransitionRemaining = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        biomeTransitionRemaining = reducedMotionQuery.matches
             ? 0
             : visualDurations.levelUp;
         biomeLabel.textContent = biomes[currentBiomeIndex].name;
+        onBiomeChanged();
         boardWrap.classList.remove("is-biome-change");
         if (biomeTransitionRemaining > 0) {
             void boardWrap.offsetWidth;
@@ -1710,12 +2408,21 @@ function updateScore() {
     boardWrap.style.setProperty("--stage-grid", currentStagePalette.grid);
     boardWrap.style.setProperty("--stage-major-grid", currentStagePalette.majorGrid);
     streakValue.textContent = "×" + combo;
-    scoreCaption.textContent = combo >= 3
+    document.body.classList.toggle("is-awaiting-move", gameState === "running" && direction.x === 0 && direction.y === 0);
+    const racing = gameState === "running" && ghostPace.length > 0 && paceLead !== null;
+    hudPace.textContent = racing ? (paceLead > 0 ? "+" + paceLead : paceLead < 0 ? "−" + Math.abs(paceLead) : "=") : "";
+    hudPace.classList.toggle("is-behind", racing && paceLead < 0);
+    updateTailCut();
+    scoreCaption.textContent = racing
+        ? (paceLead > 0 ? "Впереди своего рекорда на " + paceLead
+            : paceLead < 0 ? "Позади своего рекорда на " + Math.abs(paceLead)
+                : "Вровень со своим рекордом")
+        : combo >= 3
         ? "Поток ×" + combo + " — серия приносит бонусы"
         : score > 0
             ? "Отличный темп. Так держать."
         : gameState === "running" && direction.x === 0 && direction.y === 0
-            ? "Выберите направление для первого хода"
+            ? (preferences.swipe && isTouchDevice ? "Проведите по полю, чтобы начать движение" : "Выберите направление для первого хода")
             : "Каждый шаг имеет значение";
     updateThemePicker();
 }
@@ -1740,7 +2447,7 @@ function placeFood(type = "normal") {
 }
 
 function addFoodSpawnEffect(targetFood) {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (reducedMotionQuery.matches) return;
     foodSpawnEffects.push({
         x: targetFood.x,
         y: targetFood.y,
@@ -1756,6 +2463,8 @@ function isTileAvailable(x, y) {
         && (!riskFood || riskFood.x !== x || riskFood.y !== y)
         && !portals.some(portal => portal.x === x && portal.y === y)
         && !hazards.some(hazard => hazard.x === x && hazard.y === y)
+        && !upgradeTokens.some(token => token.x === x && token.y === y)
+        && !pulseWalls.some(tile => tile.x === x && tile.y === y)
         && !(pursuerSegments || []).some(segment => segment.x === x && segment.y === y);
 }
 
@@ -1770,22 +2479,49 @@ function randomEmptyTile() {
 }
 
 function nextFoodType() {
-    if (rewindCharges === 0 && foodCount >= nextRewindFoodAt) return "chrono";
-    return foodCount % 5 === 4 ? "echo" : "normal";
+    if (mechanicUnlocked("chrono") && rewindCharges === 0 && foodCount >= nextRewindFoodAt) return "chrono";
+    if (echoBoostCharges > 0) {
+        echoBoostCharges--;
+        return "echo";
+    }
+    return mechanicUnlocked("echo") && foodCount % 5 === 4 ? "echo" : "normal";
 }
 
 function setDirection(nextDirection) {
     if (gameState === "idle" || gameState === "over") {
         startGame();
     }
-    if (gameState !== "running") return;
-    if (nextDirection.x === -direction.x && nextDirection.y === -direction.y) return;
+    if (gameState !== "running") return false;
+    const turnQueued = queuedDirection.x !== direction.x || queuedDirection.y !== direction.y;
+    if (turnQueued) {
+        // Второй быстрый поворот (например, разворот двумя свайпами) запоминается на следующий ход.
+        if (nextDirection.x === queuedDirection.x && nextDirection.y === queuedDirection.y) return false;
+        if (nextDirection.x === -queuedDirection.x && nextDirection.y === -queuedDirection.y) return false;
+        pendingDirection = nextDirection;
+        registerTurnBeat();
+        return true;
+    }
+    if (nextDirection.x === -direction.x && nextDirection.y === -direction.y) return false;
+    if (nextDirection.x === direction.x && nextDirection.y === direction.y) return false;
     queuedDirection = nextDirection;
+    registerTurnBeat();
+    return true;
 }
 
 function step() {
     const waitingForFirstMove = direction.x === 0 && direction.y === 0;
-    direction = queuedDirection;
+    const turning = !waitingForFirstMove && (queuedDirection.x !== direction.x || queuedDirection.y !== direction.y);
+    if (turning && biomeRule() === "aurora" && !iceSlideUsed) {
+        // Лёд: перед поворотом змейка проскальзывает ещё одну клетку.
+        iceSlideUsed = true;
+    } else {
+        iceSlideUsed = false;
+        direction = queuedDirection;
+        if (pendingDirection) {
+            queuedDirection = pendingDirection;
+            pendingDirection = null;
+        }
+    }
     if (direction.x === 0 && direction.y === 0) return;
     if (waitingForFirstMove) updateScore();
     let head = {
@@ -1812,7 +2548,8 @@ function step() {
     const eating = eatingPrimary || eatingRisk;
     const bodyToCheck = eating ? snake : snake.slice(0, -1);
     const hitSnake = bodyToCheck.some(segment => segment.x === head.x && segment.y === head.y);
-    const hitHazard = hazards.some(hazard => hazard.state === "active" && hazard.x === head.x && hazard.y === head.y);
+    const hitHazard = hazards.some(hazard => hazard.state === "active" && hazard.x === head.x && hazard.y === head.y)
+        || (pulseWallsActive() && pulseWalls.some(tile => tile.x === head.x && tile.y === head.y));
     const hitPursuer = (pursuerSegments || []).some(segment => segment.x === head.x && segment.y === head.y);
     if (!hitHazard && !hitPursuer && nearMissCooldown === 0) {
         const closeToHazard = hazards.some(hazard => hazard.state === "active"
@@ -1837,7 +2574,11 @@ function step() {
         return false;
     }
 
-    if (hitSnake) {
+    if (hitSnake && phaseCharges > 0) {
+        phaseCharges--;
+        emitParticles(head.x * gridSize + gridSize / 2, head.y * gridSize + gridSize / 2, "#a88bff", 14, "ФАЗА");
+        announce("Фаза: змейка прошла сквозь собственный хвост.");
+    } else if (hitSnake) {
         if (rewindTime()) return true;
         endGame();
         return false;
@@ -1850,7 +2591,7 @@ function step() {
         runPath.shift();
         runStep = Math.min(runStep, 1200);
     }
-    if (movePursuer()) {
+    if (stasisRemaining <= 0 && movePursuer()) {
         if (shieldCharges > 0) {
             shieldCharges--;
             removePursuer();
@@ -1862,6 +2603,8 @@ function step() {
             return false;
         }
     }
+    const collectedToken = upgradeTokens.find(token => token.x === head.x && token.y === head.y);
+    if (collectedToken) collectUpgradeToken(collectedToken);
     if (completedPortalRoute) {
         score += 4;
         focusCharges = Math.min(3, focusCharges + 1);
@@ -1886,7 +2629,8 @@ function step() {
         const doubled = doubleScoreCharges > 0;
         if (doubled) doubleScoreCharges--;
         const pickedColor = caughtRisk ? "risk" : eatingPrimary ? food.type : "risk";
-        if (routeLastColor !== pickedColor) routeCombo++;
+        if (!mechanicUnlocked("colorCombo")) routeCombo = 0;
+        else if (routeLastColor !== pickedColor) routeCombo++;
         else routeCombo = 1;
         routeLastColor = pickedColor;
         const routeBonus = routeCombo >= 3 ? 2 : 0;
@@ -1897,14 +2641,14 @@ function step() {
             announce("Цветовое комбо! +2 очка.");
         }
         const modifierBonus = runModifier === runModifiers.tempo ? 1 : 0;
-        const pickupPoints = (basePointValue + streakBonus + (perfectBeat ? 1 : 0) + routeBonus + modifierBonus)
+        const pickupPoints = (basePointValue + streakBonus + (perfectBeat ? 1 : 0) + routeBonus + modifierBonus + resonanceBonus())
             * (doubled ? 2 : 1);
         score += pickupPoints;
-        const pickupColor = caughtRisk ? "#ff3e78"
-            : caughtChrono ? "#b76bff"
-                : caughtEcho ? "#3be8ff"
+        const pickupColor = caughtRisk ? "#ff5470"
+            : caughtChrono ? "#a88bff"
+                : caughtEcho ? "#56dcff"
                     : caughtLoopFood ? "#6ca9ff"
-                        : "#ffd447";
+                        : "#ffc94d";
         const pickupLabel = "+" + pickupPoints;
         triggerHeadPickup();
         triggerPickupZoom(head.x, head.y);
@@ -1917,7 +2661,7 @@ function step() {
         scoreValue.classList.add("is-popping");
         foodCount++;
         if (caughtRisk) riskPickups++;
-        const chainCompleted = advanceObjectiveChain(caughtRisk ? "risk" : "normal", perfectBeat);
+        const chainCompleted = mechanicUnlocked("chain") && advanceObjectiveChain(caughtRisk ? "risk" : "normal", perfectBeat);
         updateChallengeProgress("collect");
         if (perfectBeat) updateChallengeProgress("rhythm");
         foodHistory.push({ x: head.x, y: head.y });
@@ -1934,13 +2678,14 @@ function step() {
             riskFood = null;
             riskRemaining = 0;
         }
-        const startedTimeLoop = foodCount > 0 && foodCount % 10 === 0 && startTimeLoop();
-        const openedPortals = foodCount > 0 && foodCount % 7 === 0 && portals.length === 0 && createPortals();
+        const startedTimeLoop = mechanicUnlocked("loop") && foodCount > 0 && foodCount % 10 === 0 && startTimeLoop();
+        const openedPortals = mechanicUnlocked("portals") && foodCount > 0 && foodCount % 7 === 0 && portals.length === 0 && createPortals();
         const riskSpawnInterval = runModifier === runModifiers.hunter ? 2 : 3;
-        if (!riskFood && foodCount > 0 && foodCount % riskSpawnInterval === 0 && !caughtRisk) createRiskFood();
-        if (foodCount >= hazardWarningAt && hazards.length === 0) createHazard();
-        if (foodCount >= 8) createPursuer();
-        if (foodCount >= nextUpgradeAt) {
+        if (mechanicUnlocked("risk") && !riskFood && foodCount > 0 && foodCount % riskSpawnInterval === 0 && !caughtRisk) createRiskFood();
+        if (mechanicUnlocked("hazard") && foodCount >= hazardWarningAt && hazards.length === 0) createHazard();
+        if (mechanicUnlocked("pursuer") && foodCount >= 8) createPursuer();
+        if (mechanicUnlocked("hunt") && pursuer && huntRemaining === 0 && foodCount >= nextHuntAt) startHunt();
+        if (mechanicUnlocked("upgrades") && foodCount >= nextUpgradeAt) {
             nextUpgradeAt += 5;
             pendingUpgradeChoice = true;
         }
@@ -1984,15 +2729,15 @@ function step() {
         snake.pop();
     }
 
-    if (enteredPortal && portalExit && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (enteredPortal && portalExit && !reducedMotionQuery.matches) {
         portalTransit = {
             from: { ...enteredPortal },
             to: { ...portalExit },
             remaining: visualDurations.portalTransit
         };
         pickupMoodRemaining = Math.max(pickupMoodRemaining, 460);
-        emitParticles(enteredPortal.x * gridSize + gridSize / 2, enteredPortal.y * gridSize + gridSize / 2, "#3be8ff", 9);
-        emitParticles(portalExit.x * gridSize + gridSize / 2, portalExit.y * gridSize + gridSize / 2, "#ff3ed1", 9);
+        emitParticles(enteredPortal.x * gridSize + gridSize / 2, enteredPortal.y * gridSize + gridSize / 2, "#56dcff", 9);
+        emitParticles(portalExit.x * gridSize + gridSize / 2, portalExit.y * gridSize + gridSize / 2, "#ff5ac4", 9);
         triggerImpact(2.5, 150);
     }
     if (enteredPortal) playSound("portal");
@@ -2005,15 +2750,17 @@ function step() {
     updateGameplayStatus();
     if (pendingUpgradeChoice && gameState === "running") {
         pendingUpgradeChoice = false;
-        showUpgradeSelection();
-        return true;
+        if (!preferences.fieldUpgrades || !spawnUpgradeTokens()) {
+            showUpgradeSelection();
+            return true;
+        }
     }
     return false;
 }
 
 function draw() {
     ctx.clearRect(0, 0, gameCanvasSize, gameCanvasSize);
-    ctx.fillStyle = "#08090f";
+    ctx.fillStyle = "#080a14";
     ctx.fillRect(0, 0, gameCanvasSize, gameCanvasSize);
     ctx.save();
     if (cameraZoomRemaining > 0) {
@@ -2032,14 +2779,14 @@ function draw() {
         const offsetY = Math.round((Math.random() - 0.5) * intensity * renderScale) / renderScale;
         ctx.translate(offsetX, offsetY);
     }
-    ctx.fillStyle = "#08090f";
+    ctx.fillStyle = "#080a14";
     ctx.fillRect(-6, -6, gameCanvasSize + 12, gameCanvasSize + 12);
     const stageGlow = ctx.createRadialGradient(
         gameCanvasSize / 2, gameCanvasSize / 2, gameCanvasSize * 0.06,
         gameCanvasSize / 2, gameCanvasSize / 2, gameCanvasSize * 0.72
     );
     stageGlow.addColorStop(0, currentStagePalette.wash);
-    stageGlow.addColorStop(1, "rgba(8, 9, 15, 0)");
+    stageGlow.addColorStop(1, "rgba(8, 10, 20, 0)");
     ctx.fillStyle = stageGlow;
     ctx.fillRect(0, 0, gameCanvasSize, gameCanvasSize);
     if (!preferences.effects) drawBiomeAtmosphere();
@@ -2062,11 +2809,14 @@ function draw() {
     drawPortals();
     if (!preferences.effects) drawPortalTransit();
     drawHazards();
+    drawPulseWalls();
     drawPursuer();
     if (!preferences.effects) drawSnakeTrail();
     if (food) drawFood(food);
     if (riskFood) drawFood(riskFood);
+    drawUpgradeTokens();
     snake.forEach((segment, index) => drawSegment(segment, index));
+    drawBiomeDarkness();
     if (!preferences.effects) {
         drawStreakGauge();
         drawParticles();
@@ -2115,25 +2865,60 @@ function drawSnakeStripe() {
     ctx.restore();
 }
 
+// Волны: один стиль лент и для поля, и для фона страницы.
+const biomeWaveStyles = {
+    garden: { bands: 3, spacing: 64, amplitude: 15, speed: 0.28, frequency: 0.012, width: 18, alpha: 0.07, colors: ["#9aff62", "#5affc8", "#d5ff9a"] },
+    aurora: { bands: 4, spacing: 45, amplitude: 23, speed: 0.34, frequency: 0.009, width: 24, alpha: 0.09, colors: ["#57edff", "#a56bff", "#f44bd1"] },
+    cosmos: { bands: 4, spacing: 50, amplitude: 20, speed: 0.2, frequency: 0.008, width: 22, alpha: 0.07, colors: ["#a88bff", "#6ca9ff", "#ff5ac4"] },
+    dusk: { bands: 5, spacing: 41, amplitude: 17, speed: -0.24, frequency: 0.01, width: 20, alpha: 0.065, colors: ["#ff7bce", "#a46bff", "#ffc56b"] }
+};
+
+function drawWaveRibbons(context, time, style, layout) {
+    const { width, top, spacing, amplitude, frequency, lineWidth, alpha, glow, step, bands } = layout;
+    context.save();
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    const flow = time * style.speed;
+    for (let band = 0; band < bands; band++) {
+        const baseY = top + band * spacing;
+        const phase = flow + band * 0.78;
+        const waveY = x => baseY
+            + Math.sin(x * frequency + phase) * amplitude
+            + Math.sin(x * frequency * 0.48 - phase * 0.72) * amplitude * 0.48
+            + Math.cos(x * frequency * 0.27 + phase * 0.52) * amplitude * 0.32;
+        const gradient = context.createLinearGradient(0, baseY - amplitude, width, baseY + amplitude);
+        gradient.addColorStop(0, style.colors[band % 3]);
+        gradient.addColorStop(0.52, style.colors[(band + 1) % 3]);
+        gradient.addColorStop(1, style.colors[(band + 2) % 3]);
+        const strokeWave = (strokeWidth, opacity) => {
+            context.globalAlpha = Math.min(1, opacity);
+            context.strokeStyle = gradient;
+            context.lineWidth = strokeWidth;
+            context.beginPath();
+            for (let x = -step; x <= width + step; x += step) {
+                const y = waveY(x);
+                if (x === -step) context.moveTo(x, y);
+                else context.lineTo(x, y);
+            }
+            context.stroke();
+        };
+        // Свечение — широкие полупрозрачные мазки: выглядит так же мягко, но в разы дешевле тени.
+        strokeWave(lineWidth * (glow ? 2.2 : 2.6), alpha * 0.22);
+        strokeWave(lineWidth, alpha * 0.5);
+        strokeWave(Math.max(1.8, lineWidth * 0.2), alpha * 2.1);
+    }
+    context.restore();
+}
+
 function drawBiomeAtmosphere() {
     const kind = currentStagePalette.kind;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = reducedMotionQuery.matches;
     const time = reducedMotion ? 0 : performance.now() / 1000;
     ctx.save();
     ctx.strokeStyle = currentStagePalette.accent;
     ctx.fillStyle = currentStagePalette.accent;
 
-    if (kind === "garden") {
-        drawFlowingWaves(time, {
-            bands: 3, spacing: 64, amplitude: 15, speed: 0.28, frequency: 0.012,
-            width: 18, alpha: 0.07, colors: ["#9aff62", "#5affc8", "#d5ff9a"]
-        });
-    } else if (kind === "aurora") {
-        drawFlowingWaves(time, {
-            bands: 4, spacing: 45, amplitude: 23, speed: 0.34, frequency: 0.009,
-            width: 24, alpha: 0.09, colors: ["#57edff", "#a56bff", "#f44bd1"]
-        });
-    } else if (kind === "cosmos") {
+    if (kind === "cosmos") {
         for (let index = 0; index < 24; index++) {
             const x = (index * 97 + 31 + Math.sin(time * 0.16 + index) * 9 + gameCanvasSize) % gameCanvasSize;
             const y = (index * 151 + 57 + Math.cos(time * 0.13 + index * 0.7) * 7 + gameCanvasSize) % gameCanvasSize;
@@ -2143,53 +2928,81 @@ function drawBiomeAtmosphere() {
             ctx.arc(x, y, index % 4 === 0 ? 1.35 : 0.75, 0, Math.PI * 2);
             ctx.fill();
         }
-    } else if (kind === "dusk") {
-        drawFlowingWaves(time, {
-            bands: 5, spacing: 41, amplitude: 17, speed: -0.24, frequency: 0.01,
-            width: 20, alpha: 0.065, colors: ["#ff7bce", "#a46bff", "#ffc56b"]
+    } else {
+        const style = biomeWaveStyles[kind] || biomeWaveStyles.garden;
+        const pulse = wavePulse();
+        drawWaveRibbons(ctx, time, style, {
+            width: gameCanvasSize, top: 108, spacing: style.spacing, bands: style.bands,
+            amplitude: style.amplitude * pulse, frequency: style.frequency,
+            lineWidth: style.width, alpha: style.alpha * pulse, glow: true, step: 10
         });
     }
     ctx.restore();
 }
 
-function drawFlowingWaves(time, { bands, spacing, amplitude, speed, frequency, width, alpha, colors }) {
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    const flow = time * speed;
-    for (let band = 0; band < bands; band++) {
-        const baseY = 108 + band * spacing;
-        const phase = flow + band * 0.78;
-        const waveY = x => baseY
-            + Math.sin(x * frequency + phase) * amplitude
-            + Math.sin(x * frequency * 0.48 - phase * 0.72) * amplitude * 0.48
-            + Math.cos(x * frequency * 0.27 + phase * 0.52) * amplitude * 0.32;
-        const gradient = ctx.createLinearGradient(0, baseY - amplitude, gameCanvasSize, baseY + amplitude);
-        gradient.addColorStop(0, colors[0]);
-        gradient.addColorStop(0.52, colors[1]);
-        gradient.addColorStop(1, colors[2]);
+// Волны слегка «вздыхают» на каждый импульс ритма, пока идёт игра.
+function wavePulse() {
+    if (gameState !== "running") return 1;
+    const phase = rhythmClock % rhythmBeatLength;
+    return 1 + Math.max(0, 1 - phase / 420) * 0.16;
+}
 
-        const strokeWave = (yOffset, lineWidth, opacity) => {
-            ctx.globalAlpha = opacity;
-            ctx.strokeStyle = gradient;
-            ctx.lineWidth = lineWidth;
-            ctx.beginPath();
-            for (let x = -12; x <= gameCanvasSize + 12; x += 10) {
-                const y = waveY(x) + yOffset;
-                if (x === -12) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-        };
+// Фон страницы: те же ленты, что и на поле, в цветах текущего биома.
+const ambientCanvas = document.getElementById("ambientCanvas");
+const ambientContext = ambientCanvas ? ambientCanvas.getContext("2d") : null;
+let ambientLastFrame = 0;
+let ambientStaticKey = "";
+let ambientTime = 0;
 
-        ctx.shadowColor = colors[1];
-        ctx.shadowBlur = 12;
-        strokeWave(0, width, alpha * 0.58);
-        ctx.shadowBlur = 0;
-        strokeWave(0, Math.max(1.8, width * 0.2), alpha * 2.1);
+function resizeAmbientCanvas() {
+    if (!ambientCanvas) return;
+    // Мягкой картинке не нужно полное разрешение: половина — и быстрее, и чуть размытее.
+    const scale = isTouchDevice || window.innerWidth <= 900 ? 0.35 : 0.5;
+    ambientCanvas.width = Math.max(1, Math.round(window.innerWidth * scale));
+    ambientCanvas.height = Math.max(1, Math.round(window.innerHeight * scale));
+    ambientStaticKey = "";
+}
 
+function drawAmbientBackground(timestamp) {
+    if (!ambientContext) return;
+    const still = preferences.effects || reducedMotionQuery.matches;
+    const kind = currentStagePalette.kind;
+    if (still) {
+        const key = kind + ":" + ambientCanvas.width + "x" + ambientCanvas.height;
+        if (key === ambientStaticKey) return;
+        ambientStaticKey = key;
+    } else {
+        if (timestamp - ambientLastFrame < (isTouchDevice || window.innerWidth <= 900 ? 66 : 41)) return;
+        // Во время игры волны текут быстрее, в меню и на паузе — спокойнее.
+        const delta = Math.min(100, timestamp - ambientLastFrame) / 1000;
+        ambientTime += delta * (gameState === "running" ? (focusRemaining > 0 ? 0.5 : 1.35) : 0.7);
+        ambientStaticKey = "";
     }
-    ctx.restore();
+    ambientLastFrame = timestamp;
+    const width = ambientCanvas.width;
+    const height = ambientCanvas.height;
+    const style = biomeWaveStyles[kind] || biomeWaveStyles.garden;
+    const unit = height / 480;
+    const pulse = still ? 1 : wavePulse();
+    ambientContext.clearRect(0, 0, width, height);
+    drawWaveRibbons(ambientContext, still ? 0 : ambientTime, style, {
+        width, top: height * 0.3, spacing: height * 0.12, bands: style.bands + 2,
+        amplitude: style.amplitude * unit * 1.5 * pulse,
+        frequency: style.frequency * 480 / width * 1.7,
+        lineWidth: style.width * unit * 1.15, alpha: style.alpha * 1.45 * pulse,
+        glow: false, step: Math.max(8, Math.round(width / 90))
+    });
+    // Плавное затухание к верху и низу рисуется здесь же — это дешевле CSS-маски поверх канваса.
+    const fade = ambientContext.createLinearGradient(0, 0, 0, height);
+    fade.addColorStop(0.08, "rgba(0, 0, 0, 0)");
+    fade.addColorStop(0.34, "rgba(0, 0, 0, 1)");
+    fade.addColorStop(0.88, "rgba(0, 0, 0, 1)");
+    fade.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ambientContext.save();
+    ambientContext.globalCompositeOperation = "destination-in";
+    ambientContext.fillStyle = fade;
+    ambientContext.fillRect(0, 0, width, height);
+    ambientContext.restore();
 }
 
 function drawBestTrailGhost() {
@@ -2199,8 +3012,8 @@ function drawBestTrailGhost() {
     const inset = gridSize * 0.22;
     ctx.save();
     ctx.globalAlpha = 0.3;
-    ctx.strokeStyle = "#b76bff";
-    ctx.fillStyle = "rgba(183, 107, 255, .16)";
+    ctx.strokeStyle = "#a88bff";
+    ctx.fillStyle = "rgba(168, 139, 255, .16)";
     ctx.lineWidth = Math.max(1.5, gridSize * 0.08);
     ctx.beginPath();
     ctx.roundRect(position.x * gridSize + inset, position.y * gridSize + inset,
@@ -2217,9 +3030,9 @@ function drawHazards() {
         const inset = gridSize * 0.16;
         ctx.save();
         if (hazard.state === "warning") {
-            const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            const reducedMotion = reducedMotionQuery.matches;
             ctx.globalAlpha = reducedMotion ? 0.68 : 0.58 + Math.sin(performance.now() / 90) * 0.22;
-            ctx.strokeStyle = "#ffd447";
+            ctx.strokeStyle = "#ffc94d";
             ctx.fillStyle = "rgba(255, 164, 87, .1)";
             ctx.setLineDash([gridSize * 0.18, gridSize * 0.12]);
         } else {
@@ -2279,7 +3092,7 @@ function drawPursuerSegment(centerX, centerY, hue) {
     const inset = gridSize * 0.1;
     const size = gridSize - inset * 2;
     ctx.save();
-    ctx.fillStyle = "#111219";
+    ctx.fillStyle = "#11131e";
     ctx.strokeStyle = "hsla(" + hue + ", 100%, 68%, .82)";
     ctx.lineWidth = Math.max(1, gridSize * 0.07);
     ctx.beginPath();
@@ -2322,7 +3135,7 @@ function drawPursuerFallback(centerX, centerY, isHead, rotation, hue) {
     ctx.fill();
     ctx.stroke();
     if (isHead) {
-        ctx.fillStyle = "#08090f";
+        ctx.fillStyle = "#080a14";
         ctx.beginPath();
         ctx.arc(gridSize * 0.15, -gridSize * 0.16, gridSize * 0.06, 0, Math.PI * 2);
         ctx.arc(gridSize * 0.15, gridSize * 0.16, gridSize * 0.06, 0, Math.PI * 2);
@@ -2361,7 +3174,7 @@ function drawPortalTransit() {
     const controlY = (fromY + toY) / 2 - Math.min(42, Math.abs(toX - fromX) * 0.12 + Math.abs(toY - fromY) * 0.12);
     ctx.save();
     ctx.globalAlpha = Math.sin(Math.PI * progress) * 0.72;
-    ctx.strokeStyle = "#3be8ff";
+    ctx.strokeStyle = "#56dcff";
     ctx.lineWidth = 2.5;
     ctx.setLineDash([5, 6]);
     ctx.lineDashOffset = -progress * 24;
@@ -2425,7 +3238,7 @@ function drawPickupWaves() {
                 const intensity = Math.max(0, 1 - Math.abs(distance - radius) / 1.15) * (1 - progress) * motionScale;
                 if (intensity <= 0) continue;
 
-                ctx.globalAlpha = intensity * 0.28;
+                ctx.globalAlpha = intensity * 0.15;
                 ctx.fillStyle = wave.color;
                 ctx.fillRect(cellX * gridSize + 1, cellY * gridSize + 1, gridSize - 2, gridSize - 2);
             }
@@ -2433,11 +3246,13 @@ function drawPickupWaves() {
 
         ctx.globalAlpha = (1 - progress) * 0.48;
         ctx.strokeStyle = wave.color;
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = wave.color;
-        ctx.shadowBlur = 10;
+        ctx.lineWidth = 6;
+        ctx.globalAlpha = (1 - progress) * 0.12;
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius * gridSize, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = (1 - progress) * 0.48;
         ctx.stroke();
         ctx.restore();
     });
@@ -2445,9 +3260,9 @@ function drawPickupWaves() {
 
 function drawSnakeTrail() {
     if (snake.length < 2) return;
-    const powerTrail = shieldCharges > 0 ? "rgba(59, 232, 255, .48)"
-        : magnetRemaining > 0 ? "rgba(183, 107, 255, .48)"
-            : doubleScoreCharges > 0 ? "rgba(255, 212, 71, .5)"
+    const powerTrail = shieldCharges > 0 ? "rgba(86, 220, 255, .48)"
+        : magnetRemaining > 0 ? "rgba(168, 139, 255, .48)"
+            : doubleScoreCharges > 0 ? "rgba(255, 201, 77, .5)"
                 : null;
     const comboTrail = combo >= 3;
     ctx.save();
@@ -2461,13 +3276,13 @@ function drawSnakeTrail() {
         snake[0].y * gridSize
     );
     gradient.addColorStop(0, "rgba(194, 255, 0, 0)");
-    gradient.addColorStop(1, powerTrail || (comboTrail ? "rgba(255, 212, 71, .52)" : currentTheme.trail));
+    gradient.addColorStop(1, powerTrail || (comboTrail ? "rgba(255, 201, 77, .52)" : currentTheme.trail));
     ctx.strokeStyle = gradient;
-    ctx.shadowColor = shieldCharges > 0 ? "#3be8ff"
-        : magnetRemaining > 0 ? "#b76bff"
-            : doubleScoreCharges > 0 ? "#ffd447"
-                : comboTrail ? "#ffd447" : currentTheme.accent;
-    ctx.shadowBlur = powerTrail || comboTrail || focusRemaining > 0 ? 5 : 2;
+    ctx.shadowColor = shieldCharges > 0 ? "#56dcff"
+        : magnetRemaining > 0 ? "#a88bff"
+            : doubleScoreCharges > 0 ? "#ffc94d"
+                : comboTrail ? "#ffc94d" : currentTheme.accent;
+    ctx.shadowBlur = 0;
     ctx.beginPath();
     snake.forEach((segment, index) => {
         const x = segment.x * gridSize + gridSize / 2;
@@ -2511,7 +3326,7 @@ function drawHeadMood(centerX, centerY) {
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(getHeadRotation());
-    ctx.strokeStyle = mood === "danger" ? "#ff3e78" : currentTheme.accent;
+    ctx.strokeStyle = mood === "danger" ? "#ff5470" : currentTheme.accent;
     ctx.lineWidth = 1.15;
     ctx.lineCap = "round";
     ctx.beginPath();
@@ -2540,7 +3355,7 @@ function drawHeadMood(centerX, centerY) {
     const badgeX = centerX - direction.x * 7 + perpendicular.x * 8;
     const badgeY = centerY - direction.y * 7 + perpendicular.y * 8;
     ctx.save();
-    ctx.fillStyle = mood === "danger" ? "#ff3e78" : currentTheme.accent;
+    ctx.fillStyle = mood === "danger" ? "#ff5470" : currentTheme.accent;
     ctx.beginPath();
     ctx.arc(badgeX, badgeY, 4.5, 0, Math.PI * 2);
     ctx.fill();
@@ -2558,13 +3373,17 @@ function drawParticles() {
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = particle.color;
-        ctx.shadowColor = particle.color;
-        ctx.shadowBlur = particle.text ? 0 : 10;
         if (particle.text) {
             ctx.font = "500 " + particle.size + "px monospace";
             ctx.textAlign = "center";
             ctx.fillText(particle.text, particle.x, particle.y);
         } else {
+            // Ореол — второй, более крупный и прозрачный круг вместо размытой тени.
+            ctx.globalAlpha = alpha * 0.22;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * alpha * 2.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = alpha;
             ctx.beginPath();
             ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
             ctx.fill();
@@ -2577,7 +3396,7 @@ function drawGhostTrail() {
     if (ghostRemaining <= 0 || ghostTrail.length === 0) return;
     ctx.save();
     ctx.globalAlpha = Math.min(0.55, ghostRemaining / 2200 * 0.55);
-    ctx.strokeStyle = "#b76bff";
+    ctx.strokeStyle = "#a88bff";
     ctx.lineWidth = 3;
     ctx.setLineDash([5, 6]);
     ctx.beginPath();
@@ -2597,7 +3416,7 @@ function drawGhostTrail() {
     ctx.stroke();
     ctx.setLineDash([]);
     ghostTrail.forEach(position => {
-        ctx.fillStyle = "#b76bff";
+        ctx.fillStyle = "#a88bff";
         ctx.beginPath();
         ctx.arc(position.x * gridSize + gridSize / 2, position.y * gridSize + gridSize / 2, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -2609,7 +3428,7 @@ function drawLoopPath() {
     if (loopRemaining <= 0 || loopSequence.length === 0) return;
     ctx.save();
     ctx.globalAlpha = 0.24;
-    ctx.strokeStyle = "#3be8ff";
+    ctx.strokeStyle = "#56dcff";
     ctx.lineWidth = 1.5;
     ctx.setLineDash([3, 5]);
     ctx.beginPath();
@@ -2621,6 +3440,133 @@ function drawLoopPath() {
     });
     ctx.stroke();
     ctx.restore();
+}
+
+function drawPulseWalls() {
+    if (!pulseWalls.length) return;
+    const active = pulseWallsActive();
+    // Доля такта до смены состояния: пунктир «наливается» перед тем, как стена станет твёрдой.
+    const share = (rhythmClock % rhythmBeatLength) / rhythmBeatLength;
+    const inset = gridSize * 0.1;
+    ctx.save();
+    pulseWalls.forEach(tile => {
+        const x = tile.x * gridSize + inset;
+        const y = tile.y * gridSize + inset;
+        const size = gridSize - inset * 2;
+        if (active) {
+            ctx.globalAlpha = 0.92;
+            ctx.fillStyle = "rgba(255, 90, 196, .34)";
+            ctx.strokeStyle = "#ff5ac4";
+            ctx.setLineDash([]);
+        } else {
+            ctx.globalAlpha = 0.3 + share * 0.5;
+            ctx.fillStyle = "rgba(255, 90, 196, " + (0.04 + share * 0.12) + ")";
+            ctx.strokeStyle = "#ff8fe3";
+            ctx.setLineDash([gridSize * 0.18, gridSize * 0.12]);
+        }
+        ctx.lineWidth = Math.max(1, gridSize * 0.08);
+        if (active) {
+            const alphaBefore = ctx.globalAlpha;
+            ctx.globalAlpha = 0.16;
+            ctx.fillRect(x - 3, y - 3, size + 6, size + 6);
+            ctx.globalAlpha = alphaBefore;
+        }
+        ctx.fillRect(x, y, size, size);
+        ctx.strokeRect(x, y, size, size);
+    });
+    ctx.restore();
+}
+
+function drawBiomeDarkness() {
+    if (biomeRule() !== "cosmos" || gameState === "idle") return;
+    const headX = snake[0].x * gridSize + gridSize / 2;
+    const headY = snake[0].y * gridSize + gridSize / 2;
+    const darkness = ctx.createRadialGradient(headX, headY, gridSize * 4, headX, headY, gridSize * 9);
+    darkness.addColorStop(0, "rgba(5, 6, 10, 0)");
+    darkness.addColorStop(1, "rgba(5, 6, 10, .88)");
+    ctx.save();
+    ctx.fillStyle = darkness;
+    ctx.fillRect(-6, -6, gameCanvasSize + 12, gameCanvasSize + 12);
+    // Еда слабо мерцает в темноте, чтобы было понятно, куда двигаться.
+    [food, riskFood].forEach(target => {
+        if (!target) return;
+        ctx.globalAlpha = 0.28 + Math.sin(performance.now() / 300) * 0.12;
+        ctx.fillStyle = pickupColorForType(target.type);
+        ctx.beginPath();
+        ctx.arc(target.x * gridSize + gridSize / 2, target.y * gridSize + gridSize / 2, 3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.restore();
+}
+
+function drawUpgradeTokens() {
+    if (!upgradeTokens.length) return;
+    const now = performance.now();
+    const blink = upgradeTokensRemaining < 2200 ? 0.45 + 0.55 * Math.abs(Math.sin(now / 110)) : 1;
+    const lifeShare = Math.max(0, upgradeTokensRemaining / upgradeTokenLifetime);
+    upgradeTokens.forEach((token, index) => {
+        const style = upgradeDefs[token.type];
+        const centerX = token.x * gridSize + gridSize / 2;
+        const centerY = token.y * gridSize + gridSize / 2;
+        const radius = 10.5 * (preferences.effects ? 1 : 1 + Math.sin(now / 260 + index * 2.1) * 0.07);
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.globalAlpha = blink;
+        ctx.shadowColor = style.color;
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = "rgba(8, 10, 20, .94)";
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = style.color;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalAlpha = blink * 0.3;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        // Дуга показывает, сколько времени жетон ещё пролежит.
+        ctx.globalAlpha = blink;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * lifeShare);
+        ctx.stroke();
+        ctx.fillStyle = style.color;
+        if (token.type === "shield") {
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(0, -6);
+            ctx.lineTo(4.8, -3.8);
+            ctx.lineTo(4.8, 0.6);
+            ctx.quadraticCurveTo(4.2, 4.6, 0, 6.4);
+            ctx.quadraticCurveTo(-4.2, 4.6, -4.8, 0.6);
+            ctx.lineTo(-4.8, -3.8);
+            ctx.closePath();
+            ctx.stroke();
+        } else if (token.type === "magnet") {
+            ctx.lineWidth = 2.6;
+            ctx.lineCap = "butt";
+            ctx.beginPath();
+            ctx.moveTo(-4, -5.5);
+            ctx.lineTo(-4, 0.5);
+            ctx.arc(0, 0.5, 4, Math.PI, 0, true);
+            ctx.lineTo(4, -5.5);
+            ctx.stroke();
+        } else {
+            ctx.font = "700 10px 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(style.symbol, 0, 0.5);
+        }
+        ctx.font = "700 8px 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0, 0, 0, .9)";
+        ctx.shadowBlur = 4;
+        ctx.fillText(style.label, 0, token.y >= tileCount - 1 ? -18 : 18);
+        ctx.restore();
+    });
 }
 
 function drawPortals() {
@@ -2638,9 +3584,9 @@ function drawPortals() {
         ctx.rotate(performance.now() / 700 * (index === 0 ? 1 : -1));
         ctx.globalAlpha = (portalActive ? 0.35 + openingEase * 0.65 : 0.2);
         ctx.scale(0.35 + openingEase * 0.65, 0.35 + openingEase * 0.65);
-        ctx.shadowColor = "#3be8ff";
+        ctx.shadowColor = "#56dcff";
         ctx.shadowBlur = 2;
-        ctx.strokeStyle = index === 0 ? "#3be8ff" : "#b76bff";
+        ctx.strokeStyle = index === 0 ? "#56dcff" : "#a88bff";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(0, 0, (8 + openingEase * 2) * pulse, (10 + openingEase * 2) * pulse, 0, 0, Math.PI * 2);
@@ -2681,7 +3627,7 @@ function drawFood(targetFood) {
         ctx.textAlign = "center";
         ctx.font = "7px monospace";
         if (targetFood.type === "echo") {
-            ctx.fillStyle = "#3be8ff";
+            ctx.fillStyle = "#56dcff";
             ctx.fillText("ЭХО " + Math.ceil(echoRemaining / 1000) + "с", centerX, centerY - 12);
         } else if (targetFood.type === "risk") {
             ctx.fillStyle = "#ffd1b6";
@@ -2693,10 +3639,10 @@ function drawFood(targetFood) {
     }
 
     const type = targetFood.type || "normal";
-    const color = type === "chrono" ? "#b76bff"
-        : type === "echo" ? "#3be8ff"
-            : type === "risk" ? "#ff3e78"
-                : type === "loop" ? "#6ca9ff" : "#ffd447";
+    const color = type === "chrono" ? "#a88bff"
+        : type === "echo" ? "#56dcff"
+            : type === "risk" ? "#ff5470"
+                : type === "loop" ? "#6ca9ff" : "#ffc94d";
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.strokeStyle = color;
@@ -2864,7 +3810,7 @@ function drawSegment(segment, index) {
     const edge = 2 / renderScale;
     ctx.fillStyle = currentTheme.accent;
     ctx.fillRect(left + edge, top + edge, right - left - edge * 2, bottom - top - edge * 2);
-    ctx.fillStyle = "#171821";
+    ctx.fillStyle = "#171a28";
     ctx.fillRect(left + edge * 2, top + edge * 2, right - left - edge * 4, bottom - top - edge * 4);
     ctx.restore();
     if (index === 0) {
@@ -2894,7 +3840,7 @@ function drawSnakeTongue(centerX, centerY) {
     ctx.moveTo(8, 0);
     ctx.quadraticCurveTo(10, 0, tip, 0);
     ctx.stroke();
-    ctx.strokeStyle = "#ff3e78";
+    ctx.strokeStyle = "#ff5470";
     ctx.lineWidth = 1.15;
     ctx.beginPath();
     ctx.moveTo(8, 0);
@@ -2955,7 +3901,7 @@ function drawEyes(head) {
     const forward = 4;
     const side = 4;
     const perpendicular = { x: -direction.y, y: direction.x };
-    ctx.fillStyle = "#08090f";
+    ctx.fillStyle = "#080a14";
     for (const sign of [-1, 1]) {
         const x = centerX + direction.x * forward + perpendicular.x * side * sign;
         const y = centerY + direction.y * forward + perpendicular.y * side * sign;
@@ -2974,7 +3920,9 @@ function gameLoop(timestamp) {
     const elapsed = lastFrame ? Math.min(timestamp - lastFrame, 100) : 0;
     lastFrame = timestamp;
     updateVisualEffects(elapsed);
-    if (gameState === "running") {
+    if (gameState === "running" && resumeCountdown > 0) {
+        tickResumeCountdown(elapsed);
+    } else if (gameState === "running") {
         const wasFocused = focusRemaining > 0;
         const gameElapsed = elapsed * (wasFocused ? 0.55 : 1);
         rhythmClock += gameElapsed;
@@ -3013,12 +3961,28 @@ function gameLoop(timestamp) {
             timeSinceStep -= interval;
         }
     }
-    draw();
+    // Вне забега поле почти целиком закрыто оверлеем — 12 кадров в секунду достаточно.
+    if (gameState === "running" || timestamp - lastIdleDraw >= 80) {
+        lastIdleDraw = timestamp;
+        draw();
+    }
+    drawAmbientBackground(timestamp);
     animationFrame = requestAnimationFrame(gameLoop);
 }
 
 document.addEventListener("keydown", event => {
     if (settingsDialog.open || restartDialog.open) return;
+
+    if (gameState === "upgrade") {
+        const slotButton = upgradeButtons[{ shield: 0, magnet: 1, double: 2 }[upgradeKeyCodes[event.code]]];
+        const upgrade = slotButton && !slotButton.hidden ? slotButton.dataset.upgrade : undefined;
+        if (upgrade && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            event.preventDefault();
+            // Короткая защита: клавиша поворота, нажатая в момент появления окна, не выбирает усиление случайно.
+            if (!event.repeat && performance.now() - upgradeOpenedAt >= upgradeKeyGuard) chooseUpgrade(upgrade);
+            return;
+        }
+    }
 
     const keyDirections = {
         ArrowUp: "up",
@@ -3035,17 +3999,23 @@ document.addEventListener("keydown", event => {
         D: "right"
     };
 
-    if (keyDirections[event.key]) {
+    const codeDirections = { KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right" };
+    const keyDirection = keyDirections[event.key]
+        || (!event.ctrlKey && !event.metaKey && !event.altKey ? codeDirections[event.code] : undefined);
+    if (keyDirection) {
         event.preventDefault();
-        setDirection(directions[keyDirections[event.key]]);
+        setDirection(directions[keyDirection]);
     } else if (event.code === "Space") {
         event.preventDefault();
         if (gameState === "running" || gameState === "paused") pauseGame();
         else startGame();
-    } else if (event.key.toLowerCase() === "f") {
+    } else if (event.key.toLowerCase() === "f" || event.code === "KeyF") {
         event.preventDefault();
         activateFocus();
-    } else if (event.key.toLowerCase() === "e") {
+    } else if (event.code === "KeyQ" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        cutTail();
+    } else if (event.key.toLowerCase() === "e" || event.code === "KeyE") {
         event.preventDefault();
         togglePortals();
     } else if (event.key === "Escape" && gameState === "running") {
@@ -3066,28 +4036,93 @@ modifierButtons.forEach(button => {
     button.addEventListener("click", () => chooseModifier(button.dataset.modifier));
 });
 
-let swipeStart = null;
-canvas.addEventListener("pointerdown", event => {
-    if (!preferences.swipe || event.pointerType === "mouse" || gameState !== "running") return;
-    swipeStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
-    canvas.setPointerCapture(event.pointerId);
+// Свайпы по игровому полю: поворот срабатывает во время движения пальца,
+// не дожидаясь отпускания, а точка отсчёта переносится — можно рисовать
+// «змейку» одним непрерывным жестом.
+let swipeGesture = null;
+function swipeEnabled(event) {
+    return preferences.swipe && event.pointerType !== "mouse" && gameState === "running";
+}
+function swipeThreshold() {
+    return Math.max(14, Math.min(26, boardWrap.clientWidth * 0.045));
+}
+function showSwipePing(x, y, name) {
+    if (preferences.effects || reducedMotionQuery.matches) return;
+    const bounds = boardWrap.getBoundingClientRect();
+    const ping = document.createElement("span");
+    ping.className = "swipe-ping swipe-ping--" + name;
+    ping.style.left = (x - bounds.left) + "px";
+    ping.style.top = (y - bounds.top) + "px";
+    ping.addEventListener("animationend", () => ping.remove());
+    boardWrap.appendChild(ping);
+}
+let lastFieldTapAt = 0;
+boardWrap.addEventListener("pointerdown", event => {
+    if (!swipeEnabled(event)) return;
+    if (swipeGesture) {
+        // Второй палец на поле — выключить или включить порталы.
+        if (event.pointerId !== swipeGesture.pointerId && !swipeGesture.multi) {
+            swipeGesture.multi = true;
+            if (portals.length === 2) {
+                togglePortals();
+                if (navigator.vibrate) navigator.vibrate(14);
+            }
+        }
+        return;
+    }
+    swipeGesture = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, startedAt: performance.now(), moved: false, multi: false };
+    try { boardWrap.setPointerCapture(event.pointerId); } catch (error) { /* захват недоступен — не критично */ }
 });
-canvas.addEventListener("pointerup", event => {
-    if (!swipeStart || event.pointerId !== swipeStart.pointerId) return;
-    const deltaX = event.clientX - swipeStart.x;
-    const deltaY = event.clientY - swipeStart.y;
-    swipeStart = null;
-    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 18) return;
-    const nextDirection = Math.abs(deltaX) > Math.abs(deltaY)
-        ? (deltaX > 0 ? directions.right : directions.left)
-        : (deltaY > 0 ? directions.down : directions.up);
-    setDirection(nextDirection);
+boardWrap.addEventListener("pointermove", event => {
+    if (!swipeGesture || event.pointerId !== swipeGesture.pointerId) return;
+    if (gameState !== "running") { swipeGesture = null; return; }
+    const deltaX = event.clientX - swipeGesture.x;
+    const deltaY = event.clientY - swipeGesture.y;
+    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < swipeThreshold()) return;
+    const name = Math.abs(deltaX) > Math.abs(deltaY)
+        ? (deltaX > 0 ? "right" : "left")
+        : (deltaY > 0 ? "down" : "up");
+    swipeGesture.x = event.clientX;
+    swipeGesture.y = event.clientY;
+    swipeGesture.moved = true;
+    if (setDirection(directions[name])) {
+        showSwipePing(event.clientX, event.clientY, name);
+        if (navigator.vibrate) navigator.vibrate(8);
+    }
 });
-canvas.addEventListener("pointercancel", () => {
-    swipeStart = null;
-});
+function endSwipe(event) {
+    if (!swipeGesture || event.pointerId !== swipeGesture.pointerId) return;
+    const gesture = swipeGesture;
+    swipeGesture = null;
+    const now = performance.now();
+    // Двойное касание поля — «Фокус».
+    if (event.type !== "pointerup" || gesture.moved || gesture.multi || now - gesture.startedAt > 300) return;
+    if (now - lastFieldTapAt < 340) {
+        lastFieldTapAt = 0;
+        if (gameState === "running" && focusCharges > 0 && focusRemaining === 0) {
+            activateFocus();
+            if (navigator.vibrate) navigator.vibrate([10, 40, 10]);
+        }
+    } else {
+        lastFieldTapAt = now;
+    }
+}
+boardWrap.addEventListener("pointerup", endSwipe);
+boardWrap.addEventListener("pointercancel", endSwipe);
+boardWrap.addEventListener("lostpointercapture", endSwipe);
+// Пока идёт игра, жест по полю не должен прокручивать страницу.
+boardWrap.addEventListener("touchmove", event => {
+    if (preferences.swipe && gameState === "running" && event.cancelable) event.preventDefault();
+}, { passive: false });
 
 window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize", resizeAmbientCanvas);
+window.addEventListener("pagehide", flushRecordSaves);
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) flushRecordSaves();
+});
+resizeAmbientCanvas();
+if (ambientCanvas) document.body.classList.add("has-ambient-canvas");
 new ResizeObserver(resizeCanvas).observe(boardWrap);
 startButton.addEventListener("click", startGame);
 settingsButton.addEventListener("click", () => settingsDialog.showModal());
@@ -3108,6 +4143,10 @@ dismissTipButton.addEventListener("click", () => {
     gameTip.hidden = true;
     window.clearTimeout(gameTipTimeout);
 });
+summaryReplayButton.addEventListener("click", startGame);
+summaryShareButton.addEventListener("click", shareResult);
+tailCutButton.addEventListener("click", cutTail);
+summaryModeButton.addEventListener("click", restartRound);
 pauseButton.addEventListener("click", pauseGame);
 focusButton.addEventListener("click", activateFocus);
 dailyRunButton.addEventListener("click", startDailyRun);
@@ -3142,6 +4181,7 @@ restartDialog.addEventListener("close", () => {
 });
 
 resetRound();
+renderPlayerStats();
 renderAchievements();
 updateDailyRunLabel();
 updateSelectedModeSummary();
@@ -3152,3 +4192,12 @@ updateControls();
 updateRewindLife();
 draw();
 animationFrame = requestAnimationFrame(gameLoop);
+
+// Установка на телефон: service worker работает только по http(s), не при открытии файла с диска.
+if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(error => {
+            console.warn("Не удалось включить офлайн-режим.", error);
+        });
+    });
+}
