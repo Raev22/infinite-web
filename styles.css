@@ -1300,3 +1300,23 @@ body.settings-effects .board-glow { animation: none !important; opacity: 0; }
 .day-cycle { contain: strict; transform: translateZ(0); }
 .ambient-canvas { -webkit-mask-image: none; mask-image: none; }
 .day-cycle::after { mix-blend-mode: normal; opacity: .035; }
+
+
+/* ==========================================================================
+   Читаемость на телефоне
+   ========================================================================== */
+.tail-button[hidden] { display: none; }
+.board-wrap { background: #0a0d1a; }
+@media (max-width: 900px), (pointer: coarse) {
+    /* Виньетка мягче: на маленьком экране она съедала края поля */
+    .board-wrap::before {
+        background:
+            radial-gradient(ellipse at 50% 46%, transparent 58%, color-mix(in srgb, var(--stage-accent, var(--acid)) 4%, rgba(2, 3, 12, .42)) 100%),
+            linear-gradient(180deg, rgba(226, 231, 255, .05), transparent 26%);
+    }
+    .hud-score { font-size: 32px; }
+    .hud-flow, .hud-pace { font-size: 14px; }
+    .board-footer { font-size: 10px; color: #b4b6cc; }
+    .controls-hint { color: #b4b6cc; }
+    .rhythm-status { color: #a3a5bd; }
+}

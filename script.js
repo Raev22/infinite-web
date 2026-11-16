@@ -150,10 +150,10 @@ const visualDurations = {
     nearMiss: 520
 };
 const biomes = [
-    { name: "НЕОНОВЫЙ САД", kind: "garden", accent: "#c2ff00", wash: "rgba(194, 255, 0, .075)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(194, 255, 0, .075)" },
-    { name: "КИБЕР-СИЯНИЕ", kind: "aurora", accent: "#56dcff", wash: "rgba(86, 220, 255, .075)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(86, 220, 255, .08)" },
-    { name: "УЛЬТРАФИОЛЕТ", kind: "cosmos", accent: "#a88bff", wash: "rgba(168, 139, 255, .08)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(168, 139, 255, .08)" },
-    { name: "НЕОНОВЫЙ ПУЛЬС", kind: "dusk", accent: "#ff5ac4", wash: "rgba(255, 90, 196, .075)", grid: "rgba(184, 187, 207, .035)", majorGrid: "rgba(255, 90, 196, .08)" }
+    { name: "НЕОНОВЫЙ САД", kind: "garden", accent: "#c2ff00", wash: "rgba(194, 255, 0, .075)", grid: "rgba(196, 204, 240, .06)", majorGrid: "rgba(194, 255, 0, .13)" },
+    { name: "КИБЕР-СИЯНИЕ", kind: "aurora", accent: "#56dcff", wash: "rgba(86, 220, 255, .075)", grid: "rgba(196, 204, 240, .06)", majorGrid: "rgba(86, 220, 255, .13)" },
+    { name: "УЛЬТРАФИОЛЕТ", kind: "cosmos", accent: "#a88bff", wash: "rgba(168, 139, 255, .08)", grid: "rgba(196, 204, 240, .06)", majorGrid: "rgba(168, 139, 255, .13)" },
+    { name: "НЕОНОВЫЙ ПУЛЬС", kind: "dusk", accent: "#ff5ac4", wash: "rgba(255, 90, 196, .075)", grid: "rgba(196, 204, 240, .06)", majorGrid: "rgba(255, 90, 196, .13)" }
 ];
 const snakeThemes = [
     { id: "grove", name: "Неон", unlock: 0, hue: 0, accent: "#c2ff00", trail: "rgba(194, 255, 0, .42)" },
@@ -1257,6 +1257,7 @@ function updateTailCut() {
     if (!snake) return;
     const ready = gameState === "running" && resumeCountdown === 0 && mechanicUnlocked("tailCut") && snake.length >= tailCutMinLength;
     tailCutButton.disabled = !ready;
+    tailCutButton.hidden = snake.length < tailCutMinLength;
     tailCutLabel.textContent = snake.length >= tailCutMinLength
         ? "Сбросить хвост · +" + tailCutValue().points
         : "Сброс хвоста · от " + tailCutMinLength + " сегментов";
@@ -2760,7 +2761,7 @@ function step() {
 
 function draw() {
     ctx.clearRect(0, 0, gameCanvasSize, gameCanvasSize);
-    ctx.fillStyle = "#080a14";
+    ctx.fillStyle = "#0a0d1a";
     ctx.fillRect(0, 0, gameCanvasSize, gameCanvasSize);
     ctx.save();
     if (cameraZoomRemaining > 0) {
@@ -2779,7 +2780,7 @@ function draw() {
         const offsetY = Math.round((Math.random() - 0.5) * intensity * renderScale) / renderScale;
         ctx.translate(offsetX, offsetY);
     }
-    ctx.fillStyle = "#080a14";
+    ctx.fillStyle = "#0a0d1a";
     ctx.fillRect(-6, -6, gameCanvasSize + 12, gameCanvasSize + 12);
     const stageGlow = ctx.createRadialGradient(
         gameCanvasSize / 2, gameCanvasSize / 2, gameCanvasSize * 0.06,
@@ -2828,14 +2829,12 @@ function draw() {
 function drawSnakeStripe() {
     if (snake.length < 2) return;
     ctx.save();
-    ctx.strokeStyle = currentTheme.accent;
-    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = "#06070f";
+    ctx.globalAlpha = 0.62;
     ctx.lineWidth = 2.2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.setLineDash([1, 5]);
-    ctx.shadowColor = currentTheme.accent;
-    ctx.shadowBlur = 4;
     ctx.beginPath();
 
     let pathOpen = false;
@@ -3622,16 +3621,29 @@ function drawFood(targetFood) {
         || targetFood.type === "echo" || targetFood.type === "loop"
         ? targetFood.type
         : "food";
-    if (drawSprite(spriteName, centerX, centerY, gridSize, gridSize)) {
+    const foodPulse = reducedMotionQuery.matches ? 0.5 : 0.5 + Math.sin(performance.now() / 320) * 0.5;
+    ctx.save();
+    ctx.fillStyle = pickupColorForType(targetFood.type);
+    ctx.globalAlpha *= 0.1 + foodPulse * 0.08;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, gridSize * (0.78 + foodPulse * 0.1), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha *= 1.6;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, gridSize * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    const foodSize = gridSize * (1.22 + foodPulse * 0.06);
+    if (drawSprite(spriteName, centerX, centerY, foodSize, foodSize)) {
         ctx.save();
         ctx.textAlign = "center";
         ctx.font = "7px monospace";
         if (targetFood.type === "echo") {
             ctx.fillStyle = "#56dcff";
-            ctx.fillText("ЭХО " + Math.ceil(echoRemaining / 1000) + "с", centerX, centerY - 12);
+            ctx.fillText("ЭХО " + Math.ceil(echoRemaining / 1000) + "с", centerX, centerY - 15);
         } else if (targetFood.type === "risk") {
             ctx.fillStyle = "#ffd1b6";
-            ctx.fillText("РИСК +" + Math.ceil(riskRemaining / 1000), centerX, centerY - 12);
+            ctx.fillText("РИСК +" + Math.ceil(riskRemaining / 1000), centerX, centerY - 15);
         }
         ctx.restore();
         ctx.restore();
@@ -3853,17 +3865,72 @@ function drawSnakeTongue(centerX, centerY) {
     ctx.restore();
 }
 
+// Спрайты змейки строятся под цвет темы один раз и кэшируются. Это заменяет покадровый
+// ctx.filter (медленный и не везде поддерживаемый) и делает змейку заметной на тёмном поле.
+const snakeSpriteCache = new Map();
+
+function mixColor(hex, baseHex, share) {
+    const parse = value => [1, 3, 5].map(offset => parseInt(value.slice(offset, offset + 2), 16));
+    const first = parse(hex);
+    const second = parse(baseHex);
+    return "#" + first.map((channel, index) =>
+        Math.round(channel * share + second[index] * (1 - share)).toString(16).padStart(2, "0")).join("");
+}
+
+function getSnakeSprites(accent, bright) {
+    const key = accent + (bright ? ":bright" : ":dark");
+    let image = snakeSpriteCache.get(key);
+    if (!image) {
+        const isHex = /^#[0-9a-f]{6}$/i.test(accent);
+        const bodyTop = bright && isHex ? mixColor(accent, "#1c2033", 0.58) : "#373943";
+        const bodyBottom = bright && isHex ? mixColor(accent, "#0b0d16", 0.26) : "#11131e";
+        const headTop = bright && isHex ? mixColor(accent, "#1c2033", 0.82) : "#42434f";
+        const headBottom = bright && isHex ? mixColor(accent, "#0b0d16", 0.42) : "#15161f";
+        const detail = bright ? "#06070f" : accent;
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="384" height="192" viewBox="0 0 192 96">'
+            + '<defs><linearGradient id="b" x1="0" y1="0" x2="0.8" y2="1"><stop stop-color="' + bodyTop + '"/><stop offset="1" stop-color="' + bodyBottom + '"/></linearGradient>'
+            + '<linearGradient id="h" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="' + headTop + '"/><stop offset="1" stop-color="' + headBottom + '"/></linearGradient></defs>'
+            + '<g><rect x="8" y="12" width="80" height="72" rx="26" fill="#03040a" fill-opacity=".8"/>'
+            + '<rect x="11" y="10" width="74" height="70" rx="24" fill="url(#b)" stroke="' + accent + '" stroke-width="' + (bright ? 3.5 : 2) + '"/>'
+            + '<path d="M25 21c12-8 32-8 46 0" fill="none" stroke="#fff" stroke-opacity="' + (bright ? ".42" : ".22") + '" stroke-width="3" stroke-linecap="round"/></g>'
+            + '<g transform="translate(96 0)"><path d="M25 10h34c16 0 27 15 27 35S75 80 59 80H25C14 80 9 70 9 58V32c0-12 5-22 16-22Z" fill="#03040a" fill-opacity=".8"/>'
+            + '<path d="M25 8h34c15 0 25 15 25 37S74 82 59 82H25C15 82 11 73 11 59V33C11 18 15 8 25 8Z" fill="url(#h)" stroke="' + accent + '" stroke-width="' + (bright ? 3.5 : 2) + '"/>'
+            + '<path d="M21 19c8-7 20-9 30-7" fill="none" stroke="#fff" stroke-opacity="' + (bright ? ".5" : ".28") + '" stroke-width="3" stroke-linecap="round"/>'
+            + '<path d="M19 44c10-4 22-4 36 0" fill="none" stroke="' + detail + '" stroke-opacity=".7" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 5"/>'
+            + '<ellipse cx="62" cy="33" rx="6" ry="7.5" fill="#06070f"/><ellipse cx="62" cy="62" rx="6" ry="7.5" fill="#06070f"/>'
+            + '<circle cx="63.5" cy="31" r="2" fill="#fff"/><circle cx="63.5" cy="60" r="2" fill="#fff"/>'
+            + '<path d="M76 44h5M76 51h5" stroke="' + detail + '" stroke-width="1.6" stroke-linecap="round"/></g></svg>';
+        image = new Image();
+        image.onload = () => draw();
+        image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+        snakeSpriteCache.set(key, image);
+    }
+    return image.complete && image.naturalWidth ? image : null;
+}
+
 function drawSprite(name, centerX, centerY, width, height, rotation = 0, hueOverride = null) {
     const source = spriteCells[name];
-    if (!source || !spriteAtlas.complete || !spriteAtlas.naturalWidth) return false;
+    if (!source) return false;
+    const isSnake = name === "snakeHead" || name === "snakeBody";
+    if (isSnake) {
+        // Игрок — яркая змейка в цвете темы; охотник — тёмная с цветным контуром (оттенок шагом 15°).
+        const themed = hueOverride === null
+            ? getSnakeSprites(currentTheme.accent, true)
+            : getSnakeSprites("hsl(" + (Math.round(hueOverride / 15) * 15) % 360 + ", 100%, 68%)", false);
+        if (themed) {
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(rotation);
+            ctx.drawImage(themed, source.x * 2 + 4, 4, 184, 184, -width / 2, -height / 2, width, height);
+            ctx.restore();
+            return true;
+        }
+    }
+    if (!spriteAtlas.complete || !spriteAtlas.naturalWidth) return false;
 
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(rotation);
-    if (name === "snakeHead" || name === "snakeBody") {
-        const hue = hueOverride === null ? currentTheme.hue : hueOverride;
-        ctx.filter = hue ? "hue-rotate(" + hue + "deg) saturate(1.15)" : "none";
-    }
     ctx.drawImage(spriteAtlas, source.x + 2, source.y + 2, 92, 92, -width / 2, -height / 2, width, height);
     ctx.restore();
     return true;
