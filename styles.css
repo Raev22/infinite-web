@@ -1330,3 +1330,49 @@ body.is-fullscreen #fullscreenButton { border-color: rgba(var(--acid-rgb), .5); 
     .topbar-actions { gap: 4px; }
     .utility-button { min-width: 42px; }
 }
+
+/* ==========================================================================
+   Полноэкранный режим на телефоне: поле занимает весь экран, без прокрутки
+   ========================================================================== */
+@media (max-width: 900px), (pointer: coarse) and (max-height: 600px) {
+    body.is-fullscreen { padding: 0; overflow: hidden; }
+    body.is-fullscreen .app-shell {
+        display: flex; width: 100%; height: 100dvh; flex-direction: column; gap: var(--space-1);
+        padding: calc(var(--space-1) + var(--safe-top)) calc(var(--space-1) + var(--safe-right)) calc(var(--space-1) + var(--safe-bottom)) calc(var(--space-1) + var(--safe-left));
+        overflow-x: hidden; overflow-y: auto;
+    }
+    body.is-fullscreen .intro, body.is-fullscreen .page-footer, body.is-fullscreen .score-card,
+    body.is-fullscreen .run-brief-card, body.is-fullscreen .secondary-details,
+    body.is-fullscreen .topbar-note, body.is-fullscreen .brand-name, body.is-fullscreen .board-footer { display: none; }
+    body.is-fullscreen .topbar { height: 44px; flex: 0 0 auto; border-bottom: 0; }
+    body.is-fullscreen .game-layout { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: var(--space-1); margin: 0; }
+    body.is-fullscreen .board-card { flex: 0 0 auto; padding: var(--space-1); border-radius: 17px; }
+    /* Квадрат поля — во всю ширину, но не выше свободной высоты экрана */
+    body.is-fullscreen .board-wrap { width: min(100%, calc(100dvh - 268px)); margin: 0 auto; }
+    body.is-fullscreen .game-tip { margin-top: var(--space-1); padding: 8px 10px; }
+    body.is-fullscreen .side-panel { display: block; flex: 0 0 auto; }
+    body.is-fullscreen .controls-card { padding: var(--space-1); }
+    body.is-fullscreen .controls-hint { display: none; }
+}
+@media (max-width: 900px), (pointer: coarse) and (max-height: 600px) {
+    /* Управление прижато к низу — под большой палец; подсказка всплывает поверх шапки и не сдвигает поле */
+    body.is-fullscreen .side-panel { margin-top: auto; }
+    body.is-fullscreen .game-tip {
+        position: fixed; top: calc(var(--space-1) + var(--safe-top)); left: var(--space-1); right: var(--space-1); z-index: 5; margin: 0;
+        background: color-mix(in srgb, var(--theme-accent) 9%, #11131e); box-shadow: 0 13px 34px rgba(2, 3, 12, .6);
+    }
+}
+/* Телефон горизонтально: поле слева на всю высоту, шапка и управление справа */
+@media (orientation: landscape) and (max-height: 600px) {
+    body.is-fullscreen .app-shell {
+        display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr;
+        align-items: start; overflow: hidden;
+    }
+    body.is-fullscreen .game-layout { display: contents; }
+    body.is-fullscreen .board-card { grid-column: 1; grid-row: 1 / 3; }
+    body.is-fullscreen .board-wrap { width: calc(100dvh - 110px - var(--safe-top) - var(--safe-bottom)); }
+    body.is-fullscreen .topbar { grid-column: 2; grid-row: 1; justify-content: flex-end; }
+    body.is-fullscreen .brand { display: none; }
+    body.is-fullscreen .side-panel { grid-column: 2; grid-row: 2; align-self: end; margin: 0; }
+    body.is-fullscreen .game-tip { left: auto; width: min(420px, 50vw); }
+}

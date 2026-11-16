@@ -1,5 +1,5 @@
 // Офлайн-режим: файлы игры кэшируются и обновляются в фоне при следующем открытии.
-const CACHE = "infinite-snake-v7";
+const CACHE = "infinite-snake-v8";
 const ASSETS = [
     "./",
     "index.html",
