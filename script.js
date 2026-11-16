@@ -4210,6 +4210,39 @@ dismissTipButton.addEventListener("click", () => {
     gameTip.hidden = true;
     window.clearTimeout(gameTipTimeout);
 });
+// Полноэкранный режим. Кнопка показывается только там, где браузер его поддерживает.
+const fullscreenButton = document.getElementById("fullscreenButton");
+const fullscreenRoot = document.documentElement;
+const requestFullscreen = fullscreenRoot.requestFullscreen || fullscreenRoot.webkitRequestFullscreen;
+const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+function fullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+function updateFullscreenButton() {
+    const active = Boolean(fullscreenElement());
+    const label = active ? "Выйти из полноэкранного режима" : "Развернуть на весь экран";
+    fullscreenButton.setAttribute("aria-pressed", String(active));
+    fullscreenButton.setAttribute("aria-label", label);
+    fullscreenButton.title = label;
+    fullscreenButton.querySelector("use").setAttribute("href", active ? "#icon-compress" : "#icon-expand");
+    document.body.classList.toggle("is-fullscreen", active);
+}
+function toggleFullscreen() {
+    try {
+        const result = fullscreenElement()
+            ? exitFullscreen.call(document)
+            : requestFullscreen.call(fullscreenRoot, { navigationUI: "hide" });
+        if (result && result.catch) result.catch(error => console.warn("Не удалось переключить полноэкранный режим.", error));
+    } catch (error) {
+        console.warn("Не удалось переключить полноэкранный режим.", error);
+    }
+}
+if (requestFullscreen && exitFullscreen && (document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+    fullscreenButton.hidden = false;
+    fullscreenButton.addEventListener("click", toggleFullscreen);
+    document.addEventListener("fullscreenchange", updateFullscreenButton);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+}
 summaryReplayButton.addEventListener("click", startGame);
 summaryShareButton.addEventListener("click", shareResult);
 tailCutButton.addEventListener("click", cutTail);

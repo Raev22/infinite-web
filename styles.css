@@ -1320,3 +1320,13 @@ body.settings-effects .board-glow { animation: none !important; opacity: 0; }
     .controls-hint { color: #b4b6cc; }
     .rhythm-status { color: #a3a5bd; }
 }
+
+/* Полноэкранный режим */
+.utility-button[hidden] { display: none; }
+:fullscreen, :fullscreen body { background: var(--ink); }
+html:fullscreen { overflow-y: auto; }
+body.is-fullscreen #fullscreenButton { border-color: rgba(var(--acid-rgb), .5); color: var(--acid); }
+@media (max-width: 420px) {
+    .topbar-actions { gap: 4px; }
+    .utility-button { min-width: 42px; }
+}
